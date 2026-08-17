@@ -20,31 +20,26 @@ export function IndexTable({ rows }: { rows: IndexRow[] }) {
 
   return (
     <div className="table-wrap">
-      <table className="price-table">
+      <table className={hasEt ? "price-table" : "stack-table"}>
         <caption className={hasEt ? "sr-only" : undefined}>
           {hasEt
             ? "Effective token price, cost per pass, and pass rate for published stacks"
-            : "Not a cost ranking. No stack has a $ / M ET yet — that number exists only after every official task passed. Passed stays on every row. Incomplete runs stay labeled."}
+            : "Published stacks, not a cost ranking. Pass counts stay on every row. $ / M ET exists only after every official task passed."}
         </caption>
         <thead>
           <tr>
             <th>Model</th>
             <th className="num">Passed</th>
-            <th
-              className="num"
-              title={
-                hasEt
-                  ? undefined
-                  : "$ / M ET is only set when every official task passed"
-              }
-            >
-              $ / M ET
-            </th>
-            <th className="num">$ / pass</th>
-            <th className="num">Tokens / pass</th>
-            <th className="num">Burn vs leanest</th>
-            <th className="num">Encoding</th>
-            <th className="num">Sticker in</th>
+            {hasEt ? (
+              <>
+                <th className="num">$ / M ET</th>
+                <th className="num">$ / pass</th>
+                <th className="num">Tokens / pass</th>
+                <th className="num">Burn vs leanest</th>
+                <th className="num">Encoding</th>
+                <th className="num">Sticker in</th>
+              </>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -84,30 +79,33 @@ export function IndexTable({ rows }: { rows: IndexRow[] }) {
               <td className="num">
                 {row.work?.passed == null ? "—" : `${row.work.passed}/${row.work.tasks}`}
               </td>
-              <td className={row.work?.effectivePerMillion == null ? "num" : "num true"}>
-                {money(row.work?.effectivePerMillion)}
-              </td>
-              <td className="num">{moneyFine(row.work?.costPerPass)}</td>
-              <td className="num">
-                {row.work?.tokensPerPass == null
-                  ? "—"
-                  : whole(Math.round(row.work.tokensPerPass))}
-              </td>
-              <td className="num">{fert(row.work?.tokenEfficiency)}</td>
-              <td className="num" title="Tokenizer fertility on the text basket">
-                {fert(row.fertilityIn)}
-              </td>
-              <td className="num sticker">{money(row.listInput)}</td>
+              {hasEt ? (
+                <>
+                  <td className={row.work?.effectivePerMillion == null ? "num" : "num true"}>
+                    {money(row.work?.effectivePerMillion)}
+                  </td>
+                  <td className="num">{moneyFine(row.work?.costPerPass)}</td>
+                  <td className="num">
+                    {row.work?.tokensPerPass == null
+                      ? "—"
+                      : whole(Math.round(row.work.tokensPerPass))}
+                  </td>
+                  <td className="num">{fert(row.work?.tokenEfficiency)}</td>
+                  <td className="num" title="Tokenizer fertility on the text basket">
+                    {fert(row.fertilityIn)}
+                  </td>
+                  <td className="num sticker">{money(row.listInput)}</td>
+                </>
+              ) : null}
             </tr>
           ))}
         </tbody>
       </table>
       {!hasEt ? (
         <p className="model-meta" style={{ padding: "0.85rem 1rem 0.95rem" }}>
-          Like SWE-bench and Artificial Analysis, coverage stays on the row.
-          $ / M ET is only defined when every official task passed. Incomplete
-          runs stay visible but do not rank. Encoding is tokenizer fertility
-          on the frozen text basket.
+          Coverage stays on the row. List price and $ / M ET stay off this
+          table until a complete official suite exists. Incomplete runs stay
+          visible but do not rank.
         </p>
       ) : null}
     </div>

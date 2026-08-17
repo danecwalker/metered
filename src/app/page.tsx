@@ -13,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
     return {
       title: "Preview — no $ / M ET rank yet",
       description:
-        "Preview of published stacks. $ / M ET ranks only after a complete official suite. Pass counts stay visible. Dashes are not a cost rank.",
+        "Preview of published stacks. $ / M ET ranks only after a complete official suite. Pass counts stay visible. This is not a cost rank.",
     };
   }
   return {
@@ -70,7 +70,7 @@ export default async function HomePage() {
               <>
                 This is a preview, not a cheapest-to-finish ranking. $ / M ET
                 exists only after a complete official suite. Pass counts stay
-                visible. Incomplete runs stay labeled. Dashes are not cheap.
+                visible. Incomplete runs stay labeled. No work prices yet.
               </>
             )}
           </p>
@@ -88,21 +88,38 @@ export default async function HomePage() {
             </Link>
           </div>
         </div>
-        <aside className="code-card" aria-label="Work Price formula" data-hero-item>
-          <div className="code-card__bar">
-            <span>work-price.ts</span>
-            <span className="status-chip">{WORK_SUITE_VERSION}</span>
-          </div>
-          <pre>
-            <span className="tok-key">$ / M ET</span>
-            {"  = $ billed / work MU × 1e6\n"}
-            <span className="tok-key">Work MU</span>
-            {"    = official job chars / 4\n"}
-            <span className="tok-key">Rank</span>
-            {"       only if every task passed\n"}
-            {"               retries stay in $ billed"}
-          </pre>
-        </aside>
+        {hasEt ? (
+          <aside className="code-card" aria-label="Work Price formula" data-hero-item>
+            <div className="code-card__bar">
+              <span>work-price.ts</span>
+              <span className="status-chip">{WORK_SUITE_VERSION}</span>
+            </div>
+            <pre>
+              <span className="tok-key">$ / M ET</span>
+              {"  = $ billed / work MU × 1e6\n"}
+              <span className="tok-key">Work MU</span>
+              {"    = official job chars / 4\n"}
+              <span className="tok-key">Rank</span>
+              {"       only if every task passed\n"}
+              {"               retries stay in $ billed"}
+            </pre>
+          </aside>
+        ) : (
+          <aside className="code-card" aria-label="How to evaluate" data-hero-item>
+            <div className="code-card__bar">
+              <span>how-to-eval.md</span>
+              <span className="status-chip">preview</span>
+            </div>
+            <pre>
+              {"Same official jobs. Same tasks.\n"}
+              {`Coverage is Passed / official ${OFFICIAL_TASK_COUNT}.\n`}
+              {"This list is published stacks,\n"}
+              {"not a cost rank.\n"}
+              {"$ / M ET appears only after\n"}
+              {"every official task passed."}
+            </pre>
+          </aside>
+        )}
       </section>
 
       <section className="wrap section" id="index">
@@ -120,11 +137,10 @@ export default async function HomePage() {
             </>
           ) : (
             <>
-              Not a $ / M ET ranking — every cost cell is a dash until a stack
-              finishes every official task on {WORK_SUITE_VERSION}. Passed
-              stays first. Incomplete runs stay labeled. Coverage and cost
-              both stay on the row, the way SWE-bench and Artificial Analysis
-              keep both axes.
+              Not a $ / M ET ranking. These are published stacks with pass
+              counts on {WORK_SUITE_VERSION}. Passed stays first. Incomplete
+              runs stay labeled. Work prices stay off the board until a stack
+              finishes every official task.
             </>
           )}
         </p>
