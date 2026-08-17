@@ -61,7 +61,7 @@ npm run build
 npm start
 ```
 
-Set the same variables as `.env.example` on the host (`ADMIN_PASSWORD`, `ADMIN_SECRET`, `DATABASE_URL`). Optional: `NEXT_PUBLIC_GITHUB_REPO=owner/name` so `/eval` prints `curl | bash` for that repo.
+Set the same variables as `.env.example` on the host (`ADMIN_PASSWORD`, `ADMIN_SECRET`, `DATABASE_URL`). `/eval` already points `curl | bash` at `danecwalker/metered`. Set `NEXT_PUBLIC_GITHUB_REPO` only for a fork.
 
 `DATABASE_URL=file:./data/metered.db` is fine on a Node host with a disk. Serverless filesystems are ephemeral — use a persistent libSQL URL there if the index should survive deploys. No public hostname is bundled; use whatever host you attach.
 

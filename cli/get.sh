@@ -5,9 +5,11 @@
 #   bash cli/get.sh --force
 #   bash cli/get.sh --help
 #
-#   curl -fsSL https://raw.githubusercontent.com/OWNER/metered/main/cli/get.sh \
-#     | METERED_REPO=OWNER/metered bash
+#   curl -fsSL https://raw.githubusercontent.com/danecwalker/metered/main/cli/get.sh | bash
 set -euo pipefail
+
+# Used only when this file is piped (no checkout). Override to clone a fork.
+DEFAULT_REPO="danecwalker/metered"
 
 say() { printf '%s\n' "$*" >&2; }
 die() { say "get.sh: $*"; exit 1; }
@@ -51,8 +53,7 @@ resolve_root() {
     printf '%s\n' "$home"
     return
   fi
-  local repo="${1:-${METERED_REPO:-}}"
-  [[ -n "$repo" ]] || die "not in a Metered checkout. Set METERED_REPO=owner/name or run from the repo."
+  local repo="${1:-${METERED_REPO:-$DEFAULT_REPO}}"
   need git
   say "cloning https://github.com/${repo}.git → $home"
   git clone --depth 1 --branch "${METERED_REF:-main}" "https://github.com/${repo}.git" "$home"
@@ -62,7 +63,7 @@ resolve_root() {
 print_next() {
   say ""
   say "step 2 — run an eval:"
-  say "  curl -fsSL https://raw.githubusercontent.com/${METERED_REPO:-OWNER/metered}/main/cli/run.sh | bash -s -- \\"
+  say "  curl -fsSL https://raw.githubusercontent.com/${METERED_REPO:-$DEFAULT_REPO}/main/cli/run.sh | bash -s -- \\"
   say "    --harness <name> --effort high --model-name \"…\" --list-input 3 --list-output 15"
   say "or, from this repo:"
   say "  $NEXT_RUN"

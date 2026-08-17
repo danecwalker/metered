@@ -4,10 +4,11 @@
 #   bash cli/run.sh --help
 #   bash cli/run.sh --harness claude --effort high --model-name "Claude Sonnet" --list-input 3 --list-output 15
 #
-#   curl -fsSL https://raw.githubusercontent.com/OWNER/metered/main/cli/run.sh \
-#     | METERED_REPO=OWNER/metered bash -s -- \
+#   curl -fsSL https://raw.githubusercontent.com/danecwalker/metered/main/cli/run.sh | bash -s -- \
 #         --harness claude --effort high --model-name "Claude Sonnet" --list-input 3 --list-output 15
 set -euo pipefail
+
+DEFAULT_REPO="danecwalker/metered"
 
 say() { printf '%s\n' "$*" >&2; }
 die() { say "run.sh: $*"; exit 1; }
@@ -57,7 +58,12 @@ resolve_root() {
     printf '%s\n' "$home"
     return
   fi
-  die "no Metered checkout. Next: bash cli/get.sh (or set METERED_HOME)."
+  local repo="${METERED_REPO:-$DEFAULT_REPO}"
+  need_git() { command -v git >/dev/null 2>&1 || die "need git on PATH"; }
+  need_git
+  say "cloning https://github.com/${repo}.git → $home"
+  git clone --depth 1 --branch "${METERED_REF:-main}" "https://github.com/${repo}.git" "$home"
+  printf '%s\n' "$home"
 }
 
 want_help=0
