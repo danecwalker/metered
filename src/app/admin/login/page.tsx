@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import { authConfigured, authUnconfiguredMessage } from "@/features/admin/auth";
 import { AdminLoginForm } from "./login-form";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Admin",
+};
 
 export default function AdminLoginPage() {
   const configured = authConfigured();

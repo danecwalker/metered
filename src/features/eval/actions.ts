@@ -212,7 +212,7 @@ export async function publishSubmissionAction(formData: FormData): Promise<void>
 
   await db
     .update(submissions)
-    .set({ status: "published", reviewNote: "Published to the index." })
+    .set({ status: "published", reviewNote: "Published to Stacks." })
     .where(eq(submissions.id, id));
 
   revalidatePath("/");

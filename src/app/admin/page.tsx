@@ -16,7 +16,7 @@ export default async function AdminHomePage() {
           <h1 className="section__title">Models to price</h1>
           <p className="section__lede">
             Add a model, then add at least one endpoint and a basket count.
-            Publish both to land it on the public index.
+            Publish both to land it on Stacks.
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.6rem" }}>

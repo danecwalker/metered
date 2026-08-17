@@ -364,5 +364,5 @@ export async function saveWorkRunAction(
       },
     });
   revalidatePublic(model.slug);
-  return { ok: true, message: "Work run saved for that harness. Index lists model × harness." };
+  return { ok: true, message: "Work run saved for that harness. Stacks lists model × harness." };
 }

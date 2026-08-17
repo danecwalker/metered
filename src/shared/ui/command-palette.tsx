@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 type ModelHit = { slug: string; name: string; lab: string };
 
 const PAGES = [
-  { href: "/", label: "Work index", group: "Go" },
+  { href: "/", label: "Stacks", group: "Go" },
   { href: "/methodology", label: "Method", group: "Go" },
   { href: "/compare", label: "Paste text", group: "Go" },
   { href: "/eval", label: "Run an eval", group: "Go" },
@@ -102,14 +102,12 @@ export function CommandPalette({ models }: { models: ModelHit[] }) {
             className="cmdk__backdrop"
             aria-label="Close search"
             onClick={closePalette}
-            style={{ position: "absolute", inset: 0, border: 0, background: "transparent" }}
           />
           <div
             className="cmdk__panel"
             role="dialog"
             aria-modal="true"
             aria-label="Search"
-            style={{ position: "relative" }}
           >
             <div className="cmdk__field">
               <input

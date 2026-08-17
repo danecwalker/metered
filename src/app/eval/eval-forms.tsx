@@ -57,8 +57,8 @@ export function SubmitPackageForm() {
       ) : null}
       {state.ok ? (
         <p className="alert alert--ok" role="status">
-          Suite-verified and queued. An admin still has to publish it to the
-          index. Id {state.id}.
+          Suite-verified and queued. An admin still has to publish it to
+          Stacks. Id {state.id}.
         </p>
       ) : null}
       <SubmitButton pendingLabel="Checking…">Verify and submit</SubmitButton>

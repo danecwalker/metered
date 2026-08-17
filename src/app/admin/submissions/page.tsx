@@ -20,7 +20,7 @@ export default async function SubmissionsPage() {
       <h1 className="section__title">Eval packages</h1>
       <p className="section__lede">
         Suite-verified means hashes and totals checked out. Publishing writes a
-        work run onto the index. It does not prove the API usage was honest —
+        work run onto Stacks. It does not prove the API usage was honest —
         only that this file is a complete sealed run of our jobs.
       </p>
       {rows.length === 0 ? (

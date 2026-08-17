@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { QuoteForm } from "@/shared/ui/quote-form";
 
 export const metadata: Metadata = {
-  title: "Compare",
+  title: "Paste text",
   description: "Paste text and see what each published model charges to send or receive it.",
 };
 

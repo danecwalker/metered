@@ -333,7 +333,7 @@ export function WorkRunForm({
       <input type="hidden" name="modelId" value={modelId} />
       <p className="field__help">
         One run per harness. GPT (ChatGPT), GPT (OpenCode), and GPT (API) are
-        different rows. $ / M ET and index rank require every official task
+        different rows. $ / M ET and a Stacks rank require every official task
         to pass. $ / pass still records a partial run; it does not sort the
         board. All tokens still count — retries and failed attempts stay in
         the bill. Manual numbers get a “manual” label. Thinking is billed as

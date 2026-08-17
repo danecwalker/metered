@@ -430,7 +430,7 @@ a:hover {
   }
 }
 
-/* Index table */
+/* Catalog table */
 .section {
   padding-block: var(--space-2xl);
 }
@@ -726,7 +726,16 @@ a:hover {
   background: var(--color-scrim);
 }
 
+.cmdk__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
 .cmdk__panel {
+  position: relative;
   width: min(560px, calc(100vw - 2rem));
   background: var(--color-paper-2);
   border: 1px solid var(--color-rule);
@@ -784,7 +793,11 @@ a:hover {
 
 .cmdk__item[data-active="true"],
 .cmdk__item:hover {
-  background: var(--color-paper-2);
+  background: var(--color-paper-3);
+}
+
+.cmdk__item .model-meta {
+  margin-top: 0;
 }
 
 .cmdk__foot {
@@ -835,8 +848,6 @@ a:hover {
   line-height: 1.6;
   white-space: pre-wrap;
 }
-
-
 
 .sr-only {
   position: absolute;

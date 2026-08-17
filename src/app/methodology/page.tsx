@@ -158,7 +158,7 @@ TruePrice = ListPrice × Fertility`}
       <p>
         Suite-verified is not the same as “the API bill was honest.” It means
         this is a complete sealed run of our jobs, internally consistent, on
-        the frozen prompts. An admin still publishes to the index. Using one
+        the frozen prompts. An admin still publishes to Stacks. Using one
         harness for every model removes a variable. Several harnesses for one
         model are valid if they are named.
       </p>

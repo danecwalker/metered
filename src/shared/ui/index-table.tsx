@@ -1,10 +1,9 @@
 import Link from "next/link";
-import type { IndexRow } from "@/features/catalog/queries";
+import {
+  hasEffectivePerMillion,
+  type IndexRow,
+} from "@/features/catalog/queries";
 import { fert, money, moneyFine, whole } from "@/shared/lib/format";
-
-export function hasEffectivePerMillion(rows: IndexRow[]): boolean {
-  return rows.some((row) => row.work?.effectivePerMillion != null);
-}
 
 export function IndexTable({ rows }: { rows: IndexRow[] }) {
   if (rows.length === 0) {
@@ -24,7 +23,7 @@ export function IndexTable({ rows }: { rows: IndexRow[] }) {
         <caption className={hasEt ? "sr-only" : undefined}>
           {hasEt
             ? "Effective token price, cost per pass, and pass rate for published stacks"
-            : "Published stacks, not a cost ranking. Pass counts stay on every row. $ / M ET exists only after every official task passed."}
+            : "A list of published stacks. Pass counts stay on every row."}
         </caption>
         <thead>
           <tr>
@@ -77,7 +76,11 @@ export function IndexTable({ rows }: { rows: IndexRow[] }) {
                 </span>
               </td>
               <td className="num">
-                {row.work?.passed == null ? "—" : `${row.work.passed}/${row.work.tasks}`}
+                {row.work?.passed != null
+                  ? `${row.work.passed}/${row.work.tasks}`
+                  : hasEt
+                    ? "—"
+                    : "no official run"}
               </td>
               {hasEt ? (
                 <>
@@ -103,9 +106,9 @@ export function IndexTable({ rows }: { rows: IndexRow[] }) {
       </table>
       {!hasEt ? (
         <p className="model-meta" style={{ padding: "0.85rem 1rem 0.95rem" }}>
-          Coverage stays on the row. List price and $ / M ET stay off this
-          table until a complete official suite exists. Incomplete runs stay
-          visible but do not rank.
+          This is a list of published stacks. Pass counts stay on every row.
+          Incomplete runs stay labeled. Stacks without a published official
+          run show no official run.
         </p>
       ) : null}
     </div>

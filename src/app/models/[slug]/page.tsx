@@ -51,7 +51,7 @@ export default async function ModelPage({ params }: Props) {
           <p className="model-meta" style={{ marginBottom: "0.8rem" }}>
             Same model, different drivers. ChatGPT is not OpenCode. $ / M ET
             is only set when every official task passed. $ / pass still
-            shows on a partial run; it does not rank the index.
+            shows on a partial run; it does not rank.
           </p>
           <div className="table-wrap">
             <table className="price-table">
@@ -200,7 +200,7 @@ export default async function ModelPage({ params }: Props) {
       )}
 
       <p style={{ marginTop: "2rem" }}>
-        <Link href="/">Back to the index</Link>
+        <Link href="/">Back to Stacks</Link>
       </p>
     </article>
   );

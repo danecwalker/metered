@@ -22,13 +22,13 @@ export async function SiteHeader() {
         </Link>
         <nav className="nav__links" aria-label="Primary">
           <Link className="nav__link" href="/">
-            Index
+            Stacks
           </Link>
           <Link className="nav__link" href="/methodology">
             Method
           </Link>
           <Link className="nav__link" href="/compare">
-            Compare
+            Paste text
           </Link>
           <Link className="nav__link" href="/eval">
             Eval

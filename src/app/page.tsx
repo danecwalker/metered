@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { listPublishedIndex } from "@/features/catalog/queries";
+import {
+  hasEffectivePerMillion,
+  listPublishedIndex,
+} from "@/features/catalog/queries";
 import { OFFICIAL_TASK_COUNT } from "@/features/eval/suite";
 import { WORK_SUITE_VERSION } from "@/features/pricing/math";
-import { hasEffectivePerMillion, IndexTable } from "@/shared/ui/index-table";
+import { IndexTable } from "@/shared/ui/index-table";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +14,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const rows = await listPublishedIndex();
   if (!hasEffectivePerMillion(rows)) {
     return {
-      title: "Preview — no $ / M ET rank yet",
+      title: "Metered preview",
       description:
-        "Preview of published stacks. $ / M ET ranks only after a complete official suite. Pass counts stay visible. This is not a cost rank.",
+        "Published stacks on the same official jobs. Pass coverage stays visible. Run an eval to measure a stack.",
     };
   }
   return {
@@ -34,7 +37,6 @@ export default async function HomePage() {
           <aside className="banner" role="status" data-hero-item>
             <strong>Preview.</strong> No complete official suite is on the
             board yet. Coverage is Passed / official {OFFICIAL_TASK_COUNT}.{" "}
-            $ / M ET ranks only after every official task passed.{" "}
             <Link href="/eval">Run an eval</Link>
             {" · "}
             <Link href="/methodology">Method</Link>
@@ -49,8 +51,6 @@ export default async function HomePage() {
           ) : (
             <p className="model-meta tnum" data-hero-item>
               Passed / official {OFFICIAL_TASK_COUNT}
-              {" · "}
-              <span className="sticker">$ / M ET</span> after a complete finish
             </p>
           )}
           <h1 className="hero__headline" data-hero-item>
@@ -68,15 +68,15 @@ export default async function HomePage() {
               </>
             ) : (
               <>
-                This is a preview, not a cheapest-to-finish ranking. $ / M ET
-                exists only after a complete official suite. Pass counts stay
-                visible. Incomplete runs stay labeled. No work prices yet.
+                Published stacks on the same official jobs. Pass counts stay
+                visible. Incomplete runs stay labeled. Run an eval to measure a
+                stack, or read how we count.
               </>
             )}
           </p>
           <div className="hero__actions" data-hero-item>
-            <a className="btn btn--primary" href="#index">
-              {hasEt ? "Open the index" : "See pass counts"}
+            <a className="btn btn--primary" href={hasEt ? "#index" : "#stacks"}>
+              {hasEt ? "Open the index" : "See published stacks"}
             </a>
             {!hasEt ? (
               <Link className="btn" href="/eval">
@@ -113,16 +113,15 @@ export default async function HomePage() {
             <pre>
               {"Same official jobs. Same tasks.\n"}
               {`Coverage is Passed / official ${OFFICIAL_TASK_COUNT}.\n`}
-              {"This list is published stacks,\n"}
-              {"not a cost rank.\n"}
-              {"$ / M ET appears only after\n"}
-              {"every official task passed."}
+              {"This list is published stacks.\n"}
+              {"Run an eval to measure a stack.\n"}
+              {"Method is on /methodology."}
             </pre>
           </aside>
         )}
       </section>
 
-      <section className="wrap section" id="index">
+      <section className="wrap section" id={hasEt ? "index" : "stacks"}>
         <h2 className="section__title">
           {hasEt ? "Cheapest to finish the work" : "Published stacks"}
         </h2>
@@ -137,36 +136,36 @@ export default async function HomePage() {
             </>
           ) : (
             <>
-              Not a $ / M ET ranking. These are published stacks with pass
-              counts on {WORK_SUITE_VERSION}. Passed stays first. Incomplete
-              runs stay labeled. Work prices stay off the board until a stack
-              finishes every official task.
+              Published stacks on {WORK_SUITE_VERSION}. Incomplete runs stay
+              labeled. Run an eval to add coverage.
             </>
           )}
         </p>
         <IndexTable rows={rows} />
       </section>
 
-      <section className="band">
-        <div className="wrap band__grid">
-          <div>
-            <h2 className="section__title">One sticker, after the work</h2>
-            <p>
-              $ / M ET is the familiar unit after fertility, thinking, and
-              retries. $ / pass is the bill for a finished job. Tokens / pass
-              is whether the model is a burner. A 1/5 run cannot beat a 5/5
-              finish. See{" "}
-              <Link href="/methodology">Method</Link>.
-            </p>
+      {hasEt ? (
+        <section className="band">
+          <div className="wrap band__grid">
+            <div>
+              <h2 className="section__title">One sticker, after the work</h2>
+              <p>
+                $ / M ET is the familiar unit after fertility, thinking, and
+                retries. $ / pass is the bill for a finished job. Tokens / pass
+                is whether the model is a burner. A 1/5 run cannot beat a 5/5
+                finish. See{" "}
+                <Link href="/methodology">Method</Link>.
+              </p>
+            </div>
+            <ol>
+              <li>Run the same suite. Retry until pass or the attempt budget.</li>
+              <li>Every token stays in the bill, including failed attempts.</li>
+              <li>$ / M ET is defined only when every official task passed.</li>
+              <li>Encoding fertility explains the tokenizer, not the job.</li>
+            </ol>
           </div>
-          <ol>
-            <li>Run the same suite. Retry until pass or the attempt budget.</li>
-            <li>Every token stays in the bill, including failed attempts.</li>
-            <li>$ / M ET is defined only when every official task passed.</li>
-            <li>Encoding fertility explains the tokenizer, not the job.</li>
-          </ol>
-        </div>
-      </section>
+        </section>
+      ) : null}
     </>
   );
 }

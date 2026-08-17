@@ -1,6 +1,7 @@
 import "server-only";
 
 import { and, asc, eq } from "drizzle-orm";
+import { cache } from "react";
 import { ensureReady } from "@/db/client";
 import {
   endpoints,
@@ -70,6 +71,10 @@ export type IndexRow = {
   work: WorkSummary | null;
 };
 
+export function hasEffectivePerMillion(rows: IndexRow[]): boolean {
+  return rows.some((row) => row.work?.effectivePerMillion != null);
+}
+
 export type ModelDetail = {
   model: ModelRow;
   endpoints: EndpointRow[];
@@ -137,7 +142,9 @@ function compositeOf(scores: SliceScore[]) {
   return { fertility: fert, trueInput: trueIn, trueOutput: trueOut };
 }
 
-export async function listPublishedIndex(): Promise<IndexRow[]> {
+export const listPublishedIndex = cache(async function listPublishedIndex(): Promise<
+  IndexRow[]
+> {
   const db = await ensureReady();
   const suite = await loadOfficialSuite();
   const officialTasks = suite.tasks.length;
@@ -231,7 +238,7 @@ export async function listPublishedIndex(): Promise<IndexRow[]> {
   }
 
   return rankIndexRows(rows);
-}
+});
 
 export async function getModelBySlug(slug: string): Promise<ModelDetail | null> {
   const db = await ensureReady();
