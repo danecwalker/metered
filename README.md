@@ -1,36 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Metered
 
-## Getting Started
+A **preview** public index of **finished work** as **`$ / M ET`**, by **model × harness**.
 
-First, run the development server:
+`$ / M ET` is only defined after a **complete published run** — every official task passed, then an admin published the sealed package. Incomplete runs stay visible; they do not rank as cheap. Failed attempts and retries stay in the bill.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Evals are **local only**. The web app never accepts provider API keys. Method: `/methodology`.
+
+```
+1 MU = 4 Unicode characters (NFC, LF)
+Fertility = native tokens / MU
+True Price = list price × fertility
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Run
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Needs [Node.js](https://nodejs.org/) LTS.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cp .env.example .env.local
+# Replace ADMIN_PASSWORD and ADMIN_SECRET.
+# Placeholders in .env.example are rejected on purpose. Do not commit real values.
+npm install
+npm run dev
+```
 
-## Learn More
+Open [http://localhost:3000](http://localhost:3000). Admin is `/admin` (password from `ADMIN_PASSWORD`). The first request creates `data/metered.db` and seeds a small published set.
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm test
+npx tsc --noEmit
+npm run build
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`.env.local` and `data/*.db` are gitignored. Leave them out of git.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Eval (local only)
 
-## Deploy on Vercel
+On the machine that already has the harness CLI and any provider keys:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+bash cli/get.sh
+bash cli/run.sh --harness claude --effort high --model-name "Claude Sonnet" --list-input 3 --list-output 15
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`--effort` is required for a distinct row (`none | low | medium | high | xhigh | max | default`). Same model, different effort, different stack.
+
+`get.sh` writes `metered-eval.yaml` from the CLIs on that machine. `run.sh` retries each official task until it passes or hits `max_attempts`, then writes a sealed `*.metered.json`. Keys never leave that machine.
+
+Upload the sealed file at `/eval`. Suite-verified means the official prompts and totals check out. An admin still publishes it at `/admin/submissions` before it can rank.
+
+**`$ / M ET` needs a complete published run** of `work-2026.08-complete`. A 1/5 package is not cheaper than a 5/5 finish.
+
+## Deploy
+
+This is a standard Next.js app (not a static export). Point a [Vercel](https://vercel.com/docs/frameworks/nextjs) project at the repo, or run it as Node:
+
+```bash
+npm ci
+npm run build
+npm start
+```
+
+Set the same variables as `.env.example` on the host (`ADMIN_PASSWORD`, `ADMIN_SECRET`, `DATABASE_URL`). Optional: `NEXT_PUBLIC_GITHUB_REPO=owner/name` so `/eval` prints `curl | bash` for that repo.
+
+`DATABASE_URL=file:./data/metered.db` is fine on a Node host with a disk. Serverless filesystems are ephemeral — use a persistent libSQL URL there if the index should survive deploys. No public hostname is bundled; use whatever host you attach.
+
+## Admin
+
+1. Sign in at `/admin` after replacing the example secrets.
+2. **Add model** — name, lab, slug, tokenizer.
+   - `o200k_base` / `cl100k_base` can count the basket locally.
+   - `manual` is for Anthropic, Google, and anyone else: paste native token counts per slice.
+3. Add an endpoint (provider, SKU, list `$/M` input and output).
+4. Count the basket or enter slice token counts.
+5. Publish the model and the endpoint.
+6. Review `/eval` packages at `/admin/submissions`. Publishing writes a work run onto the index.
+
+Draft rows stay off the public index.
+
+In production, `ADMIN_PASSWORD` must be at least 12 characters and `ADMIN_SECRET` at least 24. Documented example values are rejected in every environment.
+
+## Basket
+
+Frozen files live in `data/basket/` (`basket-2026.08-preview`). Official task pastes live in `data/scenarios/`. Changing those files is a new index version.
+
+Seeded non-OpenAI fertilities are **estimates** from [TensorZero, April 2026](https://www.tensorzero.com/blog/stop-comparing-price-per-million-tokens-the-hidden-llm-api-costs/), labeled on the site. Replace them with official lab counts before treating the index as canonical.

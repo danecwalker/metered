@@ -1,0 +1,15 @@
+Review this diff. Flag only correctness and pricing-method bugs.
+
+diff --git a/src/features/pricing/math.ts b/src/features/pricing/math.ts
+@@
+-export function truePrice(list: number, tokens: number, chars: number) {
+-  return list * (tokens / chars);
+-}
++export function truePrice(listPerMillionNative: number, fertility: number) {
++  return listPerMillionNative * fertility;
++}
++
++export function fertility(nativeTokens: number, chars: number) {
++  const units = chars / 4;
++  return nativeTokens / units;
++}

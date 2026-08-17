@@ -1,0 +1,51 @@
+# How to invoke each harness on this machine.
+# Copy and edit. The CLI does not know anyone's flags — only these argv lists.
+#
+# Placeholders:
+#   {prompt}       task text (one argv item, even with spaces)
+#   {prompt_file}  temp file containing the task text
+#   {model}        --model-id
+#   {task_id}      chat | rag | extract | …
+#   {setting}      alias of {effort}
+#   {effort}       none | low | medium | high | xhigh | max | default
+#
+# `catalog` maps this name onto a Metered harness id (chatgpt, claude, …).
+# Omit it if the key already matches a catalog slug.
+#
+# Retry a task until it passes or this budget is hit. Every attempt stays
+# in the billed token totals. $ / M ET is only defined when every task
+# eventually passes.
+
+max_attempts: 3
+default_effort: default
+
+harnesses:
+  api:
+    type: api
+    base_url: https://openrouter.ai/api/v1
+
+  # Examples — delete or rewrite to match the binaries you actually have.
+
+  chatgpt:
+    type: command
+    argv: [codex, exec, --model, "{model}", "-c", "model_reasoning_effort={effort}", "{prompt}"]
+
+  claude:
+    type: command
+    argv: [claude, -p, --model, "{model}", "--effort", "{effort}", "{prompt}"]
+
+  grok:
+    type: command
+    argv: [grok, --print, --model, "{model}", "--effort", "{effort}", "{prompt}"]
+
+  qwen:
+    type: command
+    argv: [qwen, -p, --model, "{model}", "--effort", "{effort}", "{prompt}"]
+
+  opencode:
+    type: command
+    argv: [opencode, run, --model, "{model}", "--effort", "{effort}", "{prompt}"]
+
+  pi:
+    type: command
+    argv: [pi, --print, --model, "{model}", "--effort", "{effort}", "{prompt}"]

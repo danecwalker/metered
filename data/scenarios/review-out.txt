@@ -1,0 +1,1 @@
+The new split is correct: True Price is list times fertility, and fertility is native tokens per 4-character unit. Two gaps: fertility should reject empty text instead of dividing by zero, and the old function used tokens/chars (a per-character rate) which is not the same unit as tokens per MU. Add a test that a 2.65 fertility on a $5 list prints $13.25.

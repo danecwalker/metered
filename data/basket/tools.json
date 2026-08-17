@@ -1,0 +1,72 @@
+{
+  "tools": [
+    {
+      "name": "search_docs",
+      "description": "Search the product documentation and return ranked passages with anchors.",
+      "parameters": {
+        "type": "object",
+        "required": ["query"],
+        "properties": {
+          "query": { "type": "string", "description": "Natural-language search string." },
+          "product": { "type": "string", "enum": ["billing", "metering", "webhooks", "sdks"] },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 20, "default": 5 }
+        }
+      }
+    },
+    {
+      "name": "get_invoice",
+      "description": "Fetch an invoice by id, including line items and tax.",
+      "parameters": {
+        "type": "object",
+        "required": ["invoice_id"],
+        "properties": {
+          "invoice_id": { "type": "string", "pattern": "^in_[a-z0-9]+$" },
+          "expand": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["customer", "lines", "tax"] }
+          }
+        }
+      }
+    },
+    {
+      "name": "create_usage_record",
+      "description": "Record billable usage against a subscription item.",
+      "parameters": {
+        "type": "object",
+        "required": ["subscription_item", "quantity", "timestamp"],
+        "properties": {
+          "subscription_item": { "type": "string" },
+          "quantity": { "type": "number", "minimum": 0 },
+          "timestamp": { "type": "integer" },
+          "action": { "type": "string", "enum": ["increment", "set"] },
+          "idempotency_key": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "list_endpoints",
+      "description": "List priced model endpoints for a lab, including list prices and True Prices.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "lab": { "type": "string" },
+          "status": { "type": "string", "enum": ["draft", "published"] },
+          "has_measurement": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "run_sql",
+      "description": "Execute a read-only SQL query against the warehouse.",
+      "parameters": {
+        "type": "object",
+        "required": ["sql"],
+        "properties": {
+          "sql": { "type": "string" },
+          "timeout_ms": { "type": "integer", "default": 15000 },
+          "row_limit": { "type": "integer", "default": 200 }
+        }
+      }
+    }
+  ]
+}

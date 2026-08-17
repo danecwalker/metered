@@ -3,24 +3,36 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "tsx --test src/features/pricing/math.test.ts src/features/catalog/rank.test.ts src/features/eval/package.test.ts src/features/eval/score.test.ts src/features/eval/effort.test.ts src/features/admin/secrets.test.ts cli/generate-yaml.test.ts cli/cli-dx.test.ts",
+    "eval": "tsx cli/metered-eval.ts",
+    "eval:init": "tsx cli/metered-eval.ts init"
   },
   "dependencies": {
+    "@libsql/client": "^0.17.4",
+    "drizzle-orm": "^0.45.2",
+    "gsap": "^3.15.0",
+    "js-tiktoken": "^1.0.21",
     "next": "16.3.1",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5"
   }
 }

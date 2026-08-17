@@ -1,0 +1,95 @@
+/* Hallmark · pre-emit critique: P4 H5 E4 S5 R5 V4
+ * Hallmark · genre: atmospheric · theme: grok-apple-dark
+ * paper: near-black warm · display: grotesk-sans · accent: amber
+ */
+:root {
+  /* Reference — Grok void + cream, Apple hairline + focus */
+  --ref-void: oklch(7.5% 0.012 72);
+  --ref-void-2: oklch(11.5% 0.014 72);
+  --ref-void-3: oklch(15.5% 0.016 70);
+  --ref-cream: oklch(96.5% 0.014 88);
+  --ref-cream-2: oklch(80% 0.016 82);
+  --ref-cream-3: oklch(66% 0.014 80);
+  --ref-amber: oklch(74% 0.155 55);
+  --ref-amber-deep: oklch(18% 0.04 55);
+  --ref-blue: oklch(72% 0.14 250);
+  --ref-hairline: oklch(100% 0 0 / 0.1);
+  --ref-hairline-2: oklch(100% 0 0 / 0.16);
+
+  /* Semantic — existing class names bind here */
+  --color-paper: var(--ref-void);
+  --color-paper-2: var(--ref-void-2);
+  --color-paper-3: var(--ref-void-3);
+  --color-rule: var(--ref-hairline);
+  --color-rule-2: var(--ref-hairline-2);
+  --color-neutral: var(--ref-cream-3);
+  --color-muted: var(--ref-cream-3);
+  --color-ink-2: var(--ref-cream-2);
+  --color-ink: var(--ref-cream);
+  --color-accent: var(--ref-amber);
+  --color-accent-ink: var(--ref-amber-deep);
+  --color-focus: var(--ref-blue);
+  --color-graphite: var(--ref-void-2);
+  --color-graphite-2: var(--ref-void-3);
+  --color-graphite-ink: var(--ref-cream);
+  --color-graphite-muted: var(--ref-cream-3);
+  --color-wash: oklch(58% 0.12 55);
+  --color-ok: oklch(72% 0.12 155);
+  --color-warn: oklch(78% 0.13 75);
+  --color-error: oklch(68% 0.17 25);
+  --color-error-ink: oklch(98% 0.01 25);
+  --color-material: color-mix(in oklch, var(--ref-void) 72%, transparent);
+  --color-scrim: oklch(0% 0 0 / 0.48);
+  --shadow-raised: 0 12px 40px oklch(0% 0 0 / 0.45);
+
+  --font-display: var(--font-display-src), "Inter Tight", Inter, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body: var(--font-body-src), Inter, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --font-mono: var(--font-mono-src), "SF Mono", ui-monospace, "JetBrains Mono",
+    monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 1.0625rem;
+  --text-md: 1.25rem;
+  --text-lg: 1.5625rem;
+  --text-xl: 1.9531rem;
+  --text-2xl: 2.4414rem;
+  --text-3xl: 3.0518rem;
+  --text-display: clamp(2.5rem, 4.5vw + 1rem, 4.75rem);
+  --text-stat: clamp(4.25rem, 11vw, 6.5rem);
+
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+  --space-3xl: 6rem;
+  --space-4xl: 9rem;
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long: 420ms;
+
+  --rule: 1px;
+  --measure: 62ch;
+
+  --z-base: 1;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 400;
+  --z-toast: 500;
+}

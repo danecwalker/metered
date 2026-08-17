@@ -1,0 +1,3 @@
+System: You are a concise billing assistant.
+
+User: We sent the same 12-page support playbook to GPT-5.4 at $2.50 per million tokens and Claude Sonnet at $3.00. Finance says Sonnet should be more expensive. Is that actually true, and what unit should I put on the invoice?

@@ -1,0 +1,128 @@
+openapi: 3.1.0
+info:
+  title: Metered Price Index
+  version: 2026.08-preview
+  description: Compare language-model list prices on a shared text basket.
+servers:
+  - url: https://api.metered.dev/v1
+paths:
+  /index:
+    get:
+      summary: Ranked True Prices
+      operationId: listIndex
+      parameters:
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [true_input, true_output, sticker_input]
+        - in: query
+          name: lab
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ranked endpoints
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IndexPage"
+  /models/{slug}:
+    get:
+      summary: Model card
+      operationId: getModel
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Model with fertility and endpoints
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelCard"
+  /quote:
+    post:
+      summary: Price a pasted payload
+      operationId: quoteText
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                as:
+                  type: string
+                  enum: [input, output, both]
+      responses:
+        "200":
+          description: Per-model quote
+components:
+  schemas:
+    IndexPage:
+      type: object
+      required: [basket, rows]
+      properties:
+        basket:
+          type: string
+          example: basket-2026.08-preview
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/IndexRow"
+    IndexRow:
+      type: object
+      required: [slug, name, lab, listInput, trueInput]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        lab:
+          type: string
+        provider:
+          type: string
+        listInput:
+          type: number
+        listOutput:
+          type: number
+          nullable: true
+        fertilityIn:
+          type: number
+          nullable: true
+        trueInput:
+          type: number
+          nullable: true
+        trueOutput:
+          type: number
+          nullable: true
+    ModelCard:
+      type: object
+      properties:
+        name:
+          type: string
+        tokenizerKey:
+          type: string
+        slices:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              nativeTokens:
+                type: integer
+              characters:
+                type: integer
+              fertility:
+                type: number
+              source:
+                type: string
+                enum: [official, estimate, manual]

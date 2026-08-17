@@ -1,0 +1,17 @@
+System: You may call tools. After a tool result, write the user-facing answer only.
+
+Tools:
+- list_endpoints(lab?: string)
+- quote_text(text: string)
+
+User: Price this system prompt on first-party Sonnet and GPT-5.4 as input.
+
+<system_prompt>
+You are the router for a support desk. Prefer the cheapest model whose True Input Price on tools is under $4 per million MU. If none qualify, use GPT-5.4.
+</system_prompt>
+
+Tool result:
+[
+  {"name":"GPT-5.4","true_input_tools":2.50},
+  {"name":"Claude Sonnet 4.6","true_input_tools":6.18}
+]

@@ -1,0 +1,1 @@
+Drop CJK from that model’s composite and renormalize the remaining measured weights. Do not impute CJK fertility. Show the missing slice as an em dash on the card.

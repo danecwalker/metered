@@ -1,0 +1,1 @@
+{"model":"claude-opus-4-7","list_input":5.0,"list_output":null,"fertility_tools":2.65,"true_input":13.25}

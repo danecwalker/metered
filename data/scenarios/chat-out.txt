@@ -1,0 +1,1 @@
+Not necessarily. Sticker $/1M tokens is not a shared gallon. Convert each list price to True Price: list × (native tokens ÷ Metered Units), where 1 MU is 4 Unicode characters. If Sonnet needs more native tokens for the same playbook, its True Price can exceed the sticker gap. Invoice the playbook in MU, not tokens.

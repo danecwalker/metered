@@ -1,0 +1,15 @@
+Use only the passages below. If the answer is not in them, say you do not have it.
+
+Passage 1
+True Price is list price multiplied by fertility. Fertility is native tokens divided by Metered Units. One Metered Unit is four Unicode characters after NFC and LF normalization.
+
+Passage 2
+The production basket weights are English 30%, code 25%, structured 15%, tool schemas 10%, CJK 10%, instructions 10%. Missing slices drop out and remaining weights are renormalized.
+
+Passage 3
+Reasoning tokens are excluded from True Price. They belong on the model card as a thinking multiplier from a separate work suite.
+
+Passage 4
+A tokenizer change is a price change. If a canary string encodes to a new token count, recount the basket and publish the fertility delta.
+
+Question: How should we treat a model that has measurements for English and tools but not for CJK?
