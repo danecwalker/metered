@@ -2,6 +2,9 @@
 import { access, mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { detectHarnesses, renderEvalYaml } from "./generate-yaml";
+import { DEFAULT_ALIASES } from "@/features/catalog/aliases";
+import { loadCatalog } from "@/features/catalog/models-dev";
+import { resolveCatalogModel } from "@/features/catalog/resolve";
 import { parseEffort } from "@/features/eval/effort";
 import { driverFromConfig } from "./harness-drivers";
 import { loadEvalConfig } from "./load-config";
@@ -58,7 +61,7 @@ function help(): string {
    ${NEXT_INIT}
    # or: npx tsx cli/metered-eval.ts init
 
-2  run the official suite (requires --model-name and --list-input)
+2  run the official suite (requires --model-name; prices come from models.dev when the SKU is known)
    ${NEXT_RUN}
 
 --effort          ${EFFORT_LEVELS}
@@ -85,7 +88,7 @@ run flags:
   --model-id      substituted as {model}
   --effort        ${EFFORT_LEVELS}
   --setting       alias of --effort
-  --list-input    required — $/M input
+  --list-input    $/M input (optional if models.dev knows the SKU)
   --list-output   $/M output
   --max-attempts  retry budget per task (default from YAML, else 3)
   --base-url      api harness
@@ -195,29 +198,40 @@ async function main() {
       `--harness is required. Known: ${Object.keys(config.harnesses).join(", ")}.`,
     );
   }
-  const modelName = str(flags, "model-name");
-  const listInput = num(flags, "list-input");
+  const entry = config.harnesses[harnessKey];
+  if (!entry) {
+    throw new Error(
+      `Harness "${harnessKey}" is not in ${config.path}. Known: ${Object.keys(config.harnesses).join(", ")}.`,
+    );
+  }
+
+  const skuFlag = str(flags, "sku", str(flags, "model-id"));
+  const baseUrl = str(flags, "base-url") || entry.base_url || "";
+  const catalog = await loadCatalog({ timeoutMs: 5000 });
+  const detected = resolveCatalogModel(catalog, DEFAULT_ALIASES, {
+    sku: skuFlag,
+    provider: str(flags, "provider"),
+    lab: str(flags, "lab"),
+    modelName: str(flags, "model-name"),
+    harnessSlug: entry.catalogSlug,
+    baseUrl,
+  });
+  const modelName = str(flags, "model-name") || detected?.modelName || "";
+  const listInput = num(flags, "list-input") ?? detected?.listInput ?? null;
   const missing: string[] = [];
   if (!modelName) missing.push("--model-name");
-  if (typeof flags["list-input"] !== "string") missing.push("--list-input");
+  if (listInput == null) missing.push("--list-input");
   if (missing.length) {
     throw new Error(`missing ${missing.join(" ")}.\nexample:\n  ${NEXT_RUN}`);
   }
-  if (listInput == null || listInput <= 0) {
-    throw new Error("--list-input must be a positive $/M number.");
+  if (listInput == null || (listInput <= 0 && !detected)) {
+    throw new Error("--list-input must be a positive $/M number, or a SKU models.dev knows.");
   }
   const effortRaw = str(flags, "effort") || str(flags, "setting");
   const effort = effortRaw ? parseEffort(effortRaw) : config.defaultEffort;
   if (effort == null) {
     throw new Error(
       `--effort must be ${EFFORT_LEVELS}. Got "${effortRaw}".`,
-    );
-  }
-
-  const entry = config.harnesses[harnessKey];
-  if (!entry) {
-    throw new Error(
-      `Harness "${harnessKey}" is not in ${config.path}. Known: ${Object.keys(config.harnesses).join(", ")}.`,
     );
   }
 
@@ -236,13 +250,18 @@ async function main() {
   const pkg = await runLocalEval({
     root,
     modelName,
-    lab: str(flags, "lab"),
+    lab: str(flags, "lab") || detected?.labName || "",
     harnessSlug: entry.catalogSlug,
-    provider: str(flags, "provider", entry.type === "api" ? "OpenRouter" : harnessKey),
-    sku: str(flags, "sku", str(flags, "model-id")),
+    provider:
+      str(flags, "provider") ||
+      detected?.providerName ||
+      (entry.type === "api" ? "OpenRouter" : harnessKey),
+    providerId: detected?.providerId,
+    baseUrl: baseUrl || undefined,
+    sku: skuFlag || detected?.sku || "",
     setting: effort,
     listInput,
-    listOutput: num(flags, "list-output"),
+    listOutput: num(flags, "list-output") ?? detected?.listOutput ?? null,
     maxAttempts: num(flags, "max-attempts") ?? config.maxAttempts,
     driver,
   });

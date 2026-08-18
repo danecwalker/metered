@@ -4,7 +4,8 @@ import {
   hasDollarsPerMu,
   type IndexRow,
 } from "@/features/catalog/types";
-import { fert, money, moneyFine, whole } from "@/shared/lib/format";
+import { elapsed, fert, money, moneyFine, whole } from "@/shared/lib/format";
+import { CatalogLogo } from "@/shared/ui/catalog-logo";
 
 function statusOf(row: IndexRow) {
   if (!row.work) return "none" as const;
@@ -77,6 +78,8 @@ export function IndexTable({
               </>
             ) : null}
             <th className="num">Passed</th>
+            <th className="num">Attempts</th>
+            <th className="num">Time</th>
             {full ? <th>Status</th> : null}
             {hasEt || full ? (
               <>
@@ -97,23 +100,28 @@ export function IndexTable({
               key={`${row.endpointId}:${row.harnessId ?? "none"}:${row.work?.setting ?? "none"}`}
             >
               <td>
-                <Link className="model-name" href={`/models/${row.slug}`}>
-                  {full ? row.name : row.stack}
-                </Link>
-                <span className="model-meta">
-                  {full ? (
-                    row.sku
-                  ) : (
-                    <>
-                      {row.lab}
-                      {row.harnessName ? `, ${row.harnessName}` : ""}
-                      {row.work?.setting && row.work.setting !== "default"
-                        ? `, ${row.work.setting}`
-                        : ""}
-                      {`, ${row.displayName}`}
-                    </>
-                  )}
-                </span>
+                <div className="stack-lead">
+                  <CatalogLogo kind="lab" id={row.labId} name={row.lab} />
+                  <div className="stack-lead__text">
+                    <Link className="model-name" href={`/models/${row.slug}`}>
+                      {full ? row.name : row.stack}
+                    </Link>
+                    <span className="model-meta">
+                      {full ? (
+                        row.sku
+                      ) : (
+                        <>
+                          {row.lab}
+                          {row.harnessName ? `, ${row.harnessName}` : ""}
+                          {row.work?.setting && row.work.setting !== "default"
+                            ? `, ${row.work.setting}`
+                            : ""}
+                          {`, ${row.displayName}`}
+                        </>
+                      )}
+                    </span>
+                  </div>
+                </div>
               </td>
               {full ? (
                 <>
@@ -128,6 +136,10 @@ export function IndexTable({
                   ? `${row.work.passed}/${row.work.tasks}`
                   : "-"}
               </td>
+              <td className="num">
+                {row.work?.attempts != null ? whole(row.work.attempts) : "-"}
+              </td>
+              <td className="num tnum">{elapsed(row.work?.durationMs)}</td>
               {full ? (
                 <td>
                   <StatusMark row={row} />

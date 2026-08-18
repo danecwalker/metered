@@ -2,22 +2,33 @@
 
 import { useActionState } from "react";
 import {
-  createEndpointAction,
+  deleteEndpointAction,
   measureBasketAction,
   saveMeasurementAction,
   saveWorkRunAction,
   updateEndpointAction,
+  updateEndpointStatusAction,
   updateModelAction,
   type ActionState,
 } from "@/features/admin/actions";
 import { SLICES } from "@/features/basket/slices";
 import type { EndpointRow, HarnessRow, ModelRow, WorkRunRow } from "@/db/schema";
+import type { CatalogLab } from "@/features/catalog/resolve";
 import type { SliceScore } from "@/features/catalog/queries";
+import { CatalogLogo } from "@/shared/ui/catalog-logo";
 import { ActionMessage, SubmitButton } from "@/shared/ui/form-status";
-import { fert, whole } from "@/shared/lib/format";
+import { fert, money, whole } from "@/shared/lib/format";
 
-export function EditModelForm({ model }: { model: ModelRow }) {
+export function EditModelForm({
+  model,
+  labs,
+}: {
+  model: ModelRow;
+  labs: CatalogLab[];
+}) {
   const [state, action] = useActionState(updateModelAction, null as ActionState | null);
+  const locked = Boolean(model.catalogId);
+  const selectedLab = model.labId ?? "";
 
   return (
     <form action={action} className="stack">
@@ -27,13 +38,38 @@ export function EditModelForm({ model }: { model: ModelRow }) {
           <label className="field__label" htmlFor="name">
             Name
           </label>
-          <input className="input" id="name" name="name" required defaultValue={model.name} />
+          <input
+            className="input"
+            id="name"
+            name="name"
+            required
+            defaultValue={model.name}
+            readOnly={locked}
+          />
         </div>
         <div className="field">
-          <label className="field__label" htmlFor="lab">
+          <label className="field__label" htmlFor="labId">
             Lab
           </label>
-          <input className="input" id="lab" name="lab" required defaultValue={model.lab} />
+          {labs.length > 0 ? (
+            <select className="select" id="labId" name="labId" defaultValue={selectedLab}>
+              <option value="">Pick a lab</option>
+              {selectedLab && !labs.some((lab) => lab.id === selectedLab) ? (
+                <option value={selectedLab}>{model.lab}</option>
+              ) : null}
+              {labs.map((lab) => (
+                <option key={lab.id} value={lab.id}>
+                  {lab.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input className="input" id="lab" name="lab" required defaultValue={model.lab} />
+          )}
+          <p className="field__help">
+            Lab is the models.dev lab, not a host. Changing it reloads every
+            provider as an endpoint.
+          </p>
         </div>
       </div>
       <div className="form-grid">
@@ -41,7 +77,19 @@ export function EditModelForm({ model }: { model: ModelRow }) {
           <label className="field__label" htmlFor="slug">
             Slug
           </label>
-          <input className="input" id="slug" name="slug" required defaultValue={model.slug} />
+          <input
+            className="input"
+            id="slug"
+            name="slug"
+            required
+            defaultValue={model.slug}
+            readOnly={locked}
+          />
+          {locked && model.catalogId ? (
+            <p className="field__help">
+              Identity comes from models.dev (<code>{model.catalogId}</code>).
+            </p>
+          ) : null}
         </div>
         <div className="field">
           <label className="field__label" htmlFor="tokenizerKey">
@@ -80,107 +128,85 @@ export function EditModelForm({ model }: { model: ModelRow }) {
   );
 }
 
-export function AddEndpointForm({ modelId }: { modelId: string }) {
-  const [state, action] = useActionState(createEndpointAction, null as ActionState | null);
-
+export function EndpointList({ endpoints }: { endpoints: EndpointRow[] }) {
+  if (endpoints.length === 0) {
+    return <p>No providers yet. Refresh from models.dev.</p>;
+  }
   return (
-    <form action={action} className="stack">
-      <input type="hidden" name="modelId" value={modelId} />
-      <div className="form-grid">
-        <div className="field">
-          <label className="field__label" htmlFor="provider">
-            Provider
-          </label>
-          <input className="input" id="provider" name="provider" required placeholder="OpenAI" />
-        </div>
-        <div className="field">
-          <label className="field__label" htmlFor="sku">
-            SKU
-          </label>
-          <input className="input" id="sku" name="sku" required placeholder="gpt-5.4" />
-        </div>
-      </div>
-      <div className="field">
-        <label className="field__label" htmlFor="displayName">
-          Display name
-        </label>
-        <input
-          className="input"
-          id="displayName"
-          name="displayName"
-          required
-          placeholder="OpenAI first-party"
-        />
-      </div>
-      <div className="form-grid">
-        <div className="field">
-          <label className="field__label" htmlFor="listInput">
-            List input ($/M native)
-          </label>
-          <input
-            className="input"
-            id="listInput"
-            name="listInput"
-            type="number"
-            step="0.0001"
-            min="0"
-            required
-          />
-        </div>
-        <div className="field">
-          <label className="field__label" htmlFor="listOutput">
-            List output ($/M native)
-          </label>
-          <input className="input" id="listOutput" name="listOutput" type="number" step="0.0001" min="0" />
-          <p className="field__help">Leave blank if unpublished.</p>
-        </div>
-      </div>
-      <div className="form-grid">
-        <div className="field">
-          <label className="field__label" htmlFor="listCacheHit">
-            List cache hit ($/M native)
-          </label>
-          <input
-            className="input"
-            id="listCacheHit"
-            name="listCacheHit"
-            type="number"
-            step="0.0001"
-            min="0"
-          />
-          <p className="field__help">Leave blank to bill cache at the input rate.</p>
-        </div>
-        <div className="field">
-          <label className="field__label" htmlFor="listCacheWrite">
-            List cache write ($/M native)
-          </label>
-          <input
-            className="input"
-            id="listCacheWrite"
-            name="listCacheWrite"
-            type="number"
-            step="0.0001"
-            min="0"
-          />
-        </div>
-      </div>
-      <div className="field">
-        <label className="field__label" htmlFor="ep-status">
-          Status
-        </label>
-        <select className="select" id="ep-status" name="status" defaultValue="published">
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
-        </select>
-      </div>
-      <ActionMessage state={state} />
-      <SubmitButton pendingLabel="Adding…">Add endpoint</SubmitButton>
+    <div className="table-wrap">
+      <table className="price-table">
+        <thead>
+          <tr>
+            <th>Provider</th>
+            <th>SKU</th>
+            <th className="num">In</th>
+            <th className="num">Out</th>
+            <th>Status</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {endpoints.map((endpoint) => (
+            <tr key={endpoint.id}>
+              <td>
+                <div className="stack-lead">
+                  <CatalogLogo kind="provider" id={endpoint.providerId} name={endpoint.provider} />
+                  <div className="stack-lead__text">
+                    {endpoint.displayName}
+                  </div>
+                </div>
+              </td>
+              <td>
+                <code>{endpoint.sku}</code>
+              </td>
+              <td className="num">{money(endpoint.listInput)}</td>
+              <td className="num">{money(endpoint.listOutput)}</td>
+              <td>
+                <EndpointStatusForm endpoint={endpoint} />
+              </td>
+              <td>
+                <form action={deleteEndpointAction}>
+                  <input type="hidden" name="id" value={endpoint.id} />
+                  <button className="btn btn--danger" type="submit">
+                    Remove
+                  </button>
+                </form>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function EndpointStatusForm({ endpoint }: { endpoint: EndpointRow }) {
+  return (
+    <form action={updateEndpointStatusAction}>
+      <input type="hidden" name="id" value={endpoint.id} />
+      <input type="hidden" name="provider" value={endpoint.provider} />
+      <input type="hidden" name="sku" value={endpoint.sku} />
+      <input type="hidden" name="displayName" value={endpoint.displayName} />
+      <input type="hidden" name="listInput" value={endpoint.listInput} />
+      <input type="hidden" name="listOutput" value={endpoint.listOutput ?? ""} />
+      <input type="hidden" name="listCacheHit" value={endpoint.listCacheHit ?? ""} />
+      <input type="hidden" name="listCacheWrite" value={endpoint.listCacheWrite ?? ""} />
+      <select
+        className="select"
+        name="status"
+        defaultValue={endpoint.status}
+        onChange={(event) => event.currentTarget.form?.requestSubmit()}
+      >
+        <option value="draft">Draft</option>
+        <option value="published">Published</option>
+      </select>
     </form>
   );
 }
 
 export function EndpointEditor({ endpoint }: { endpoint: EndpointRow }) {
   const [state, action] = useActionState(updateEndpointAction, null as ActionState | null);
+  const locked = Boolean(endpoint.catalogSku || endpoint.providerId);
 
   return (
     <form action={action} className="stack" style={{ paddingBlock: "1rem" }}>
@@ -196,6 +222,7 @@ export function EndpointEditor({ endpoint }: { endpoint: EndpointRow }) {
             name="provider"
             required
             defaultValue={endpoint.provider}
+            readOnly={locked}
           />
         </div>
         <div className="field">
@@ -208,6 +235,7 @@ export function EndpointEditor({ endpoint }: { endpoint: EndpointRow }) {
             name="sku"
             required
             defaultValue={endpoint.sku}
+            readOnly={locked}
           />
         </div>
       </div>
@@ -221,7 +249,11 @@ export function EndpointEditor({ endpoint }: { endpoint: EndpointRow }) {
           name="displayName"
           required
           defaultValue={endpoint.displayName}
+          readOnly={locked}
         />
+        {locked ? (
+          <p className="field__help">List prices refresh from models.dev. Status stays yours.</p>
+        ) : null}
       </div>
       <div className="form-grid">
         <div className="field">
@@ -236,6 +268,7 @@ export function EndpointEditor({ endpoint }: { endpoint: EndpointRow }) {
             step="0.0001"
             required
             defaultValue={endpoint.listInput}
+            readOnly={locked}
           />
         </div>
         <div className="field">
@@ -249,6 +282,7 @@ export function EndpointEditor({ endpoint }: { endpoint: EndpointRow }) {
             type="number"
             step="0.0001"
             defaultValue={endpoint.listOutput ?? ""}
+            readOnly={locked}
           />
         </div>
       </div>
@@ -265,6 +299,7 @@ export function EndpointEditor({ endpoint }: { endpoint: EndpointRow }) {
             step="0.0001"
             min="0"
             defaultValue={endpoint.listCacheHit ?? ""}
+            readOnly={locked}
           />
           <p className="field__help">Leave blank to bill cache at the input rate.</p>
         </div>
@@ -280,6 +315,7 @@ export function EndpointEditor({ endpoint }: { endpoint: EndpointRow }) {
             step="0.0001"
             min="0"
             defaultValue={endpoint.listCacheWrite ?? ""}
+            readOnly={locked}
           />
         </div>
       </div>
@@ -397,7 +433,8 @@ export function WorkRunForm({
         to pass. $ / pass still records a partial run; it does not sort the
         board. All tokens still count. Retries and failed attempts stay in
         the bill. Manual numbers get a “manual” label. Thinking is billed as
-        output.
+        output. Cache reads and writes are billed at their list rates, or the
+        input rate if those rates are empty.
       </p>
       {runs.length > 0 ? (
         <p className="model-meta">
@@ -514,18 +551,64 @@ export function WorkRunForm({
           />
         </div>
       </div>
-      <div className="field">
-        <label className="field__label" htmlFor="cacheHitTokens">
-          Cache-hit tokens
-        </label>
-        <input
-          className="input"
-          id="cacheHitTokens"
-          name="cacheHitTokens"
-          type="number"
-          min="0"
-          defaultValue={latest?.cacheHitTokens ?? 0}
-        />
+      <div className="form-grid">
+        <div className="field">
+          <label className="field__label" htmlFor="cacheHitTokens">
+            Cache-hit tokens
+          </label>
+          <input
+            className="input"
+            id="cacheHitTokens"
+            name="cacheHitTokens"
+            type="number"
+            min="0"
+            defaultValue={latest?.cacheHitTokens ?? 0}
+          />
+        </div>
+        <div className="field">
+          <label className="field__label" htmlFor="cacheWriteTokens">
+            Cache-write tokens
+          </label>
+          <input
+            className="input"
+            id="cacheWriteTokens"
+            name="cacheWriteTokens"
+            type="number"
+            min="0"
+            defaultValue={latest?.cacheWriteTokens ?? 0}
+          />
+        </div>
+      </div>
+      <div className="form-grid">
+        <div className="field">
+          <label className="field__label" htmlFor="attempts">
+            Attempts
+          </label>
+          <input
+            className="input"
+            id="attempts"
+            name="attempts"
+            type="number"
+            min="1"
+            defaultValue={latest?.attempts ?? ""}
+          />
+          <p className="field__help">Harness calls, including retries.</p>
+        </div>
+        <div className="field">
+          <label className="field__label" htmlFor="durationSec">
+            Time (seconds)
+          </label>
+          <input
+            className="input"
+            id="durationSec"
+            name="durationSec"
+            type="number"
+            min="0"
+            defaultValue={
+              latest?.durationMs != null ? Math.round(latest.durationMs / 1000) : ""
+            }
+          />
+        </div>
       </div>
       <div className="field">
         <label className="field__label" htmlFor="work-notes">

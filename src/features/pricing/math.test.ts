@@ -70,6 +70,62 @@ describe("work price", () => {
     assert.equal(usd, 1 + 2);
   });
 
+  it("does not double-count thinking already inside output", () => {
+    const usd = workCostUsd({
+      inputTokens: 0,
+      outputTokens: 1_000_000,
+      reasoningTokens: 800_000,
+      cacheHitTokens: 0,
+      listInput: 1,
+      listOutput: 2,
+      listCacheHit: null,
+    });
+    assert.equal(usd, 2);
+  });
+
+  it("bills disjoint cache reads and the leftover uncached input", () => {
+    const usd = workCostUsd({
+      inputTokens: 26,
+      outputTokens: 0,
+      reasoningTokens: 0,
+      cacheHitTokens: 1_000_000,
+      cacheWriteTokens: 0,
+      listInput: 2,
+      listOutput: 6,
+      listCacheHit: 0.5,
+      listCacheWrite: 2,
+    });
+    assert.equal(usd, costForTokens(26, 2) + costForTokens(1_000_000, 0.5));
+  });
+
+  it("treats OpenAI cache reads as a subset of input", () => {
+    const usd = workCostUsd({
+      inputTokens: 1_000_000,
+      outputTokens: 0,
+      reasoningTokens: 0,
+      cacheHitTokens: 800_000,
+      listInput: 2,
+      listOutput: 6,
+      listCacheHit: 0.5,
+    });
+    assert.equal(usd, costForTokens(200_000, 2) + costForTokens(800_000, 0.5));
+  });
+
+  it("bills cache writes at the write rate", () => {
+    const usd = workCostUsd({
+      inputTokens: 0,
+      outputTokens: 0,
+      reasoningTokens: 0,
+      cacheHitTokens: 0,
+      cacheWriteTokens: 1_000_000,
+      listInput: 2,
+      listOutput: 6,
+      listCacheHit: 0.5,
+      listCacheWrite: 2.5,
+    });
+    assert.equal(usd, 2.5);
+  });
+
   it("is tokens per pass including thought and failed attempts", () => {
     assert.equal(tokensPerPass(100, 20, 80, 2), 100);
     assert.equal(tokensPerPass(100, 20, 80, 1), 200);

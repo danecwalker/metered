@@ -5,12 +5,13 @@ import { lockfileOf } from "@/features/eval/package";
 import { evalBootstrap } from "@/features/eval/source";
 import { loadOfficialSuite } from "@/features/eval/suite";
 import { currentUser } from "@/features/account/auth";
+import { REPUTATION_AUTO_PUBLISH } from "@/features/account/reputation";
 import { SubmitPackageForm } from "./eval-forms";
 
 export const metadata: Metadata = {
   title: "Eval",
   description:
-    "Upload a sealed package from a local run, or generate one with the two-step CLI.",
+    "Upload a sealed package from a local run, or generate one with clone, init, then run.",
 };
 
 export default async function EvalPage() {
@@ -26,7 +27,8 @@ export default async function EvalPage() {
         <p className="text-ink-2 max-w-[62ch] text-[length:var(--text-base)] leading-relaxed">
           Upload a sealed <code>metered-eval/1</code> package from the official
           suite repo. Anyone can read how. Only signed-in users can upload.
-          Nothing posts until an admin screens it.
+          Reputation {REPUTATION_AUTO_PUBLISH}+ with a clean record
+          publishes on submit. New accounts wait for review.
         </p>
       </header>
 
@@ -45,9 +47,9 @@ export default async function EvalPage() {
         <header className="grid gap-3">
           <h2 className="section__title">How to eval</h2>
           <p className="text-ink-2 max-w-[62ch] text-[length:var(--text-base)] leading-relaxed">
-            Clone the suite. Edit only <code>main.py</code> so it calls your
-            harness: model, effort, dangerous mode, whatever that CLI needs.
-            Then run. Docker is required: the agent works in an isolated
+            Clone the suite. Run init to write <code>harness.yaml</code> from
+            CLIs on PATH. Then run the CLI with a harness from that file, plus
+            model and effort. Docker is required: the agent works in an isolated
             checkout and the hidden verifier grades a git patch with no
             network. Do not edit <code>tasks/</code>.
           </p>
@@ -55,7 +57,7 @@ export default async function EvalPage() {
         <div className="grid gap-5">
           <div className="code-card">
             <div className="code-card__bar">
-              <span>1. clone and edit main.py</span>
+              <span>1. clone and init</span>
               <span className="status-chip">
                 {suite.suiteVersion} / {EVALUATOR_VERSION}
               </span>
@@ -75,10 +77,12 @@ export default async function EvalPage() {
           hash {suite.suiteHash.slice(0, 16)}… /{" "}
           <Link href="/eval/suite">/eval/suite</Link>
           <br />
-          Official suite {suite.suiteVersion}. Set HARNESS, MODEL, EFFORT, and
-          FLAGS in main.py. The suite adapter for that CLI counts tokens and
-          writes usage.json. Same SKU, different effort or harness, different
-          row. High reputation can file a SKU that is not on the catalog yet.
+          Official suite {suite.suiteVersion}. Pass a harness from
+          harness.yaml, --model, and --effort. Approve flags live in
+          harness.yaml. The suite harvests usage.json. Same SKU, different
+          effort or harness, different row. Reputation {REPUTATION_AUTO_PUBLISH}+
+          can file a SKU that models.dev does not know yet, and publishes a
+          clean package without an admin click.
         </p>
       </section>
 

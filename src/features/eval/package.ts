@@ -12,6 +12,7 @@ export function totalsFromTasks(tasks: EvalTaskResult[]) {
     output: sum(tasks.map((task) => task.usage.output)),
     reasoning: sum(tasks.map((task) => task.usage.reasoning)),
     cacheHit: sum(tasks.map((task) => task.usage.cacheHit)),
+    cacheWrite: sum(tasks.map((task) => task.usage.cacheWrite ?? 0)),
   };
 }
 
@@ -36,6 +37,13 @@ export function sealPackage(
       attempts: task.attempts > 0 ? task.attempts : 1,
       outputHash: contentHash(task.output),
       passed: scoreOutput(task.check, task.output, spec),
+      usage: {
+        input: task.usage.input || 0,
+        output: task.usage.output || 0,
+        reasoning: task.usage.reasoning || 0,
+        cacheHit: task.usage.cacheHit || 0,
+        cacheWrite: task.usage.cacheWrite || 0,
+      },
     };
   });
   const draft: Omit<EvalPackage, "integrity"> = {
@@ -86,4 +94,21 @@ function normalizeSpec(spec: TaskScoreSpec | string[] | undefined): TaskScoreSpe
 
 function sum(values: number[]): number {
   return values.reduce((acc, value) => acc + value, 0);
+}
+
+export function clockFromPackage(pkg: EvalPackage): {
+  attempts: number;
+  durationMs: number | null;
+} {
+  const attempts = pkg.run.tasks.reduce(
+    (total, task) => total + Math.max(0, task.attempts || 0),
+    0,
+  );
+  const started = Date.parse(pkg.run.startedAt);
+  const finished = Date.parse(pkg.run.finishedAt);
+  const durationMs =
+    Number.isFinite(started) && Number.isFinite(finished) && finished >= started
+      ? finished - started
+      : null;
+  return { attempts, durationMs };
 }

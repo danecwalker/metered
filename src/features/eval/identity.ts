@@ -17,29 +17,14 @@ export const HARNESS_BINARIES: Record<string, string[]> = {
   custom: [],
 };
 
-/** SKUs a harness may claim. api / opencode / custom can drive any published SKU. */
-const SKU_PATTERN: Record<string, RegExp> = {
-  claude: /^claude/i,
-  chatgpt: /^(gpt-|o[1-9]|codex|chatgpt)/i,
-  gemini: /^gemini/i,
-  grok: /^grok/i,
-  qwen: /^qwen/i,
-  kimi: /^(kimi|moonshot)/i,
-  deepseek: /^deepseek/i,
-  api: /./,
-  opencode: /./,
-  pi: /./,
-  custom: /./,
-};
-
 export function isKnownHarness(slug: string): boolean {
   return HARNESSES.some((item) => item.slug === slug);
 }
 
+/** Any known harness may drive any SKU. The published row is model × harness. */
 export function skuFitsHarness(harnessSlug: string, sku: string): boolean {
-  const pattern = SKU_PATTERN[harnessSlug];
-  if (!pattern) return false;
-  return pattern.test(sku.trim());
+  if (!isKnownHarness(harnessSlug)) return false;
+  return sku.trim().length > 0;
 }
 
 export function harnessIdForSlug(slug: string): string | null {

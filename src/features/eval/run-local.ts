@@ -25,6 +25,8 @@ export type LocalRunInput = {
   lab: string;
   harnessSlug: string;
   provider: string;
+  providerId?: string;
+  baseUrl?: string;
   sku: string;
   setting: Effort;
   listInput: number;
@@ -50,6 +52,7 @@ export function addUsage(
     output: left.output + right.output,
     reasoning: left.reasoning + right.reasoning,
     cacheHit: left.cacheHit + right.cacheHit,
+    cacheWrite: (left.cacheWrite ?? 0) + (right.cacheWrite ?? 0),
   };
 }
 
@@ -70,7 +73,13 @@ export async function runLocalEval(input: LocalRunInput): Promise<EvalPackage> {
   const maxAttempts = Math.min(8, Math.max(1, input.maxAttempts ?? DEFAULT_MAX_ATTEMPTS));
 
   for (const task of suite.tasks) {
-    let usage: EvalTaskResult["usage"] = { input: 0, output: 0, reasoning: 0, cacheHit: 0 };
+    let usage: EvalTaskResult["usage"] = {
+      input: 0,
+      output: 0,
+      reasoning: 0,
+      cacheHit: 0,
+      cacheWrite: 0,
+    };
     let output = "";
     let providerUsage: unknown = null;
     let passed = false;
@@ -126,6 +135,8 @@ export async function runLocalEval(input: LocalRunInput): Promise<EvalPackage> {
         harnessId: harness.id,
         harnessSlug: harness.slug,
         provider: input.provider.trim(),
+        providerId: input.providerId?.trim() || undefined,
+        baseUrl: input.baseUrl?.trim() || undefined,
         sku: input.sku.trim(),
         setting: input.setting,
         listInput: input.listInput,

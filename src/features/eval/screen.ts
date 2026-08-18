@@ -1,4 +1,9 @@
-import { canProposeModel, REJECTS_BEFORE_BAN } from "@/features/account/reputation";
+import {
+  canAutoPublish,
+  canProposeModel,
+  REPUTATION_AUTO_PUBLISH,
+  REJECTS_BEFORE_BAN,
+} from "@/features/account/reputation";
 import { identityError } from "@/features/eval/identity";
 import { stackConfidence, type RunSample } from "@/features/eval/confidence";
 
@@ -15,7 +20,7 @@ export type ScreenInput = {
 };
 
 export type ScreenReport = {
-  recommend: "hold" | "reject";
+  recommend: "hold" | "reject" | "publish";
   reasons: string[];
   catalog: "known" | "new";
   identity: "ok" | "bad";
@@ -41,9 +46,9 @@ export function screenSubmission(input: ScreenInput): ScreenReport {
   }
   if (!input.catalogKnown) {
     if (canProposeModel(input.user.reputation, input.user.status)) {
-      reasons.push("New SKU. High-reputation user may propose it; still hold for review.");
+      reasons.push("New SKU. High-reputation user may propose it.");
     } else {
-      reasons.push("SKU is not on the published catalog. Reputation is too low to propose a model.");
+      reasons.push("SKU is not in the models.dev catalog. Reputation is too low to propose a model.");
     }
   }
   if (confidence.independent === 0) {
@@ -57,8 +62,18 @@ export function screenSubmission(input: ScreenInput): ScreenReport {
     Boolean(identity) ||
     (!input.catalogKnown && !canProposeModel(input.user.reputation, input.user.status));
 
+  const publish =
+    !reject &&
+    canAutoPublish(input.user.reputation, input.user.status, input.user.rejectCount);
+
+  if (publish) {
+    reasons.push(`Reputation ${input.user.reputation} meets the ${REPUTATION_AUTO_PUBLISH}+ auto-publish bar.`);
+  } else if (!reject && input.user.rejectCount > 0) {
+    reasons.push("Prior reject. Hold for review.");
+  }
+
   return {
-    recommend: reject ? "reject" : "hold",
+    recommend: reject ? "reject" : publish ? "publish" : "hold",
     reasons,
     catalog,
     identity: identity ? "bad" : "ok",

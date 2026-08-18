@@ -14,7 +14,6 @@ import { slugify } from "@/features/admin/schemas";
 import { ensureReady } from "@/db/client";
 import {
   endpoints,
-  harnesses,
   models,
   submissions,
   users,
@@ -22,17 +21,26 @@ import {
 } from "@/db/schema";
 import type { RunSample } from "@/features/eval/confidence";
 import { harnessIdForSlug, identityError } from "@/features/eval/identity";
-import { parseEvalPackage } from "@/features/eval/package";
+import { clockFromPackage, parseEvalPackage } from "@/features/eval/package";
 import { screenSubmission, type ScreenReport } from "@/features/eval/screen";
 import { loadOfficialSuite } from "@/features/eval/suite";
 import type { EvalPackage, VerifyResult } from "@/features/eval/types";
 import { verifyPackage } from "@/features/eval/verify";
+import {
+  detectFromRun,
+  ensureCatalogIdentity,
+  findLocalIdentity,
+  listCatalogAliases,
+} from "@/features/catalog/sync";
+import { loadCatalog } from "@/features/catalog/models-dev";
+import { detectProviderId, resolveCatalogModel } from "@/features/catalog/resolve";
 import { WORK_SUITE_VERSION } from "@/features/pricing/math";
 
 export type SubmitState = {
   error?: string;
   ok?: boolean;
   id?: string;
+  published?: boolean;
   verify?: VerifyResult;
 };
 
@@ -57,14 +65,47 @@ function valueHasProviderApiKey(value: unknown): boolean {
   return false;
 }
 
-async function publishedBySku(sku: string) {
+async function resolveRunIdentity(query: {
+  sku: string;
+  provider?: string;
+  lab?: string;
+  modelName?: string;
+  harnessSlug?: string;
+  baseUrl?: string;
+}) {
   const db = await ensureReady();
-  const rows = await db
-    .select({ endpoint: endpoints, model: models })
-    .from(endpoints)
-    .innerJoin(models, eq(endpoints.modelId, models.id))
-    .where(and(eq(endpoints.sku, sku), eq(endpoints.status, "published"), eq(models.status, "published")));
-  return rows[0] ?? null;
+  const match = await detectFromRun(db, query);
+  const local = await findLocalIdentity(db, { sku: query.sku, match });
+  return { match, local };
+}
+
+function hintsFromSubmission(row: {
+  sku: string;
+  provider: string;
+  lab: string;
+  modelName: string;
+  harnessSlug: string;
+  packageJson: string;
+}) {
+  let provider = row.provider;
+  let baseUrl: string | undefined;
+  try {
+    const pkg = parseEvalPackage(JSON.parse(row.packageJson));
+    baseUrl = pkg.stack.baseUrl;
+    if (!provider || provider === "unlisted") {
+      provider = pkg.stack.providerId || pkg.stack.provider || row.provider;
+    }
+  } catch {
+    /* use the stored row */
+  }
+  return {
+    sku: row.sku,
+    provider,
+    lab: row.lab,
+    modelName: row.modelName,
+    harnessSlug: row.harnessSlug,
+    baseUrl,
+  };
 }
 
 async function peerSamples(args: {
@@ -153,11 +194,19 @@ export async function submitPackageAction(
   const harnessId = harnessIdForSlug(pkg.stack.harnessSlug);
   if (!harnessId) return { error: "Unknown harness." };
 
-  const catalog = await publishedBySku(pkg.stack.sku);
+  const identity = await resolveRunIdentity({
+    sku: pkg.stack.sku,
+    provider: pkg.stack.providerId || pkg.stack.provider,
+    lab: pkg.stack.lab,
+    modelName: pkg.stack.modelName,
+    harnessSlug: pkg.stack.harnessSlug,
+    baseUrl: pkg.stack.baseUrl,
+  });
+  const catalogKnown = Boolean(identity.match) || Boolean(identity.local);
   const screen = screenSubmission({
     harnessSlug: pkg.stack.harnessSlug,
     sku: pkg.stack.sku,
-    catalogKnown: Boolean(catalog),
+    catalogKnown,
     user: {
       reputation: user.reputation,
       status: user.status,
@@ -181,9 +230,9 @@ export async function submitPackageAction(
   }
 
   const blocked = screen.recommend === "reject";
-  const name = catalog?.model.name ?? pkg.stack.sku;
-  const lab = catalog?.model.lab ?? "Unlisted";
-  const provider = catalog?.endpoint.provider ?? "unlisted";
+  const name = identity.local?.model.name ?? identity.match?.modelName ?? pkg.stack.modelName ?? pkg.stack.sku;
+  const lab = identity.local?.model.lab ?? identity.match?.labName ?? "Unlisted";
+  const provider = identity.local?.endpoint.provider ?? identity.match?.providerName ?? "unlisted";
   const id = crypto.randomUUID();
   await db.insert(submissions).values({
     id,
@@ -191,7 +240,7 @@ export async function submitPackageAction(
     integrity: pkg.integrity,
     suiteHash: pkg.suiteHash,
     modelName: name,
-    modelSlug: catalog?.model.slug ?? slugify(pkg.stack.sku),
+    modelSlug: identity.local?.model.slug ?? identity.match?.slug ?? slugify(pkg.stack.sku),
     lab,
     harnessId,
     harnessSlug: pkg.stack.harnessSlug,
@@ -204,6 +253,8 @@ export async function submitPackageAction(
     outputTokens: pkg.totals.output,
     reasoningTokens: pkg.totals.reasoning,
     cacheHitTokens: pkg.totals.cacheHit,
+    cacheWriteTokens: pkg.totals.cacheWrite ?? 0,
+    ...clockFromPackage(pkg),
     packageJson: JSON.stringify(pkg),
     note: String(formData.get("note") ?? "").trim() || null,
     reviewNote: blocked
@@ -211,7 +262,7 @@ export async function submitPackageAction(
       : screen.reasons.join(" "),
     userId: user.id,
     screenJson: JSON.stringify(screen),
-    newModel: catalog ? 0 : 1,
+    newModel: catalogKnown ? 0 : 1,
     createdAt: new Date().toISOString(),
   });
 
@@ -225,11 +276,18 @@ export async function submitPackageAction(
         status: shouldBan(rejects, user.status) ? "banned" : user.status,
       })
       .where(eq(users.id, user.id));
-  } else if (!blocked && screen.corroboration.independent >= 1) {
+  } else if (!blocked && screen.recommend !== "publish" && screen.corroboration.independent >= 1) {
     await db
       .update(users)
       .set({ reputation: afterCorroborate(user.reputation) })
       .where(eq(users.id, user.id));
+  }
+
+  if (!blocked && screen.recommend === "publish") {
+    await applyPublishedSubmission(id, {
+      reviewNote: `Published automatically. Reputation ${user.reputation} meets the auto-publish bar.`,
+    });
+    return { ok: true, id, published: true, verify };
   }
 
   revalidatePath("/admin/submissions");
@@ -237,7 +295,7 @@ export async function submitPackageAction(
   if (blocked) {
     return { error: screen.reasons.join(" "), verify };
   }
-  return { ok: true, id, verify };
+  return { ok: true, id, published: false, verify };
 }
 
 export type ListedSubmission = Awaited<ReturnType<typeof listSubmissions>>[number];
@@ -245,17 +303,39 @@ export type ListedSubmission = Awaited<ReturnType<typeof listSubmissions>>[numbe
 export async function listSubmissions() {
   await requireAdmin();
   const db = await ensureReady();
-  const rows = await db
-    .select({ submission: submissions, username: users.username, reputation: users.reputation })
-    .from(submissions)
-    .leftJoin(users, eq(submissions.userId, users.id))
-    .orderBy(desc(submissions.createdAt));
-  return rows.map((row) => ({
-    ...row.submission,
-    username: row.username,
-    reputation: row.reputation,
-    screen: parseScreen(row.submission.screenJson),
-  }));
+  const [rows, catalog, aliases] = await Promise.all([
+    db
+      .select({ submission: submissions, username: users.username, reputation: users.reputation })
+      .from(submissions)
+      .leftJoin(users, eq(submissions.userId, users.id))
+      .orderBy(desc(submissions.createdAt)),
+    loadCatalog(),
+    listCatalogAliases(db),
+  ]);
+  return rows.map((row) => {
+    const hints = hintsFromSubmission(row.submission);
+    const match = resolveCatalogModel(catalog, aliases, hints);
+    const providerId =
+      match?.providerId || detectProviderId(catalog, aliases, hints) || "";
+    const providerName =
+      match?.providerName ||
+      (providerId && catalog.providers[providerId]?.name) ||
+      row.submission.provider;
+    return {
+      ...row.submission,
+      username: row.username,
+      reputation: row.reputation,
+      screen: parseScreen(row.submission.screenJson),
+      labId: match?.labId ?? null,
+      labName: match?.labName ?? row.submission.lab,
+      providerId,
+      providerName,
+      offerings: (match?.offerings ?? []).map((item) => ({
+        id: item.providerId,
+        name: item.providerName,
+      })),
+    };
+  });
 }
 
 function parseScreen(raw: string | null): ScreenReport | null {
@@ -274,14 +354,15 @@ export async function rescreenSubmissionAction(formData: FormData): Promise<void
   const [row] = await db.select().from(submissions).where(eq(submissions.id, id)).limit(1);
   if (!row || row.status === "published") return;
 
-  const catalog = await publishedBySku(row.sku);
+  const identity = await resolveRunIdentity(hintsFromSubmission(row));
+  const catalogKnown = Boolean(identity.match) || Boolean(identity.local);
   const [owner] = row.userId
     ? await db.select().from(users).where(eq(users.id, row.userId)).limit(1)
     : [];
   const screen = screenSubmission({
     harnessSlug: row.harnessSlug,
     sku: row.sku,
-    catalogKnown: Boolean(catalog),
+    catalogKnown,
     user: owner
       ? {
           reputation: owner.reputation,
@@ -301,70 +382,146 @@ export async function rescreenSubmissionAction(formData: FormData): Promise<void
     .update(submissions)
     .set({
       status: blocked ? "rejected" : "verified",
-      modelName: catalog?.model.name ?? row.sku,
-      modelSlug: catalog?.model.slug ?? slugify(row.sku),
-      lab: catalog?.model.lab ?? "Unlisted",
-      provider: catalog?.endpoint.provider ?? "unlisted",
-      newModel: catalog ? 0 : 1,
+      modelName: identity.local?.model.name ?? identity.match?.modelName ?? row.sku,
+      modelSlug: identity.local?.model.slug ?? identity.match?.slug ?? slugify(row.sku),
+      lab: identity.local?.model.lab ?? identity.match?.labName ?? "Unlisted",
+      provider: identity.local?.endpoint.provider ?? identity.match?.providerName ?? "unlisted",
+      newModel: catalogKnown ? 0 : 1,
       screenJson: JSON.stringify(screen),
       reviewNote: blocked
         ? `Blocked: ${screen.reasons.join(" ")}`
         : screen.reasons.join(" "),
     })
     .where(eq(submissions.id, id));
+  if (!blocked && screen.recommend === "publish") {
+    await applyPublishedSubmission(id, {
+      reviewNote: "Published automatically after re-screen.",
+    });
+    return;
+  }
+  revalidatePath("/admin/submissions");
+}
+
+function clockFromSubmission(row: {
+  attempts: number | null;
+  durationMs: number | null;
+  packageJson: string;
+}): { attempts: number | null; durationMs: number | null } {
+  if (row.attempts != null && row.durationMs != null) {
+    return { attempts: row.attempts, durationMs: row.durationMs };
+  }
+  try {
+    const clock = clockFromPackage(parseEvalPackage(JSON.parse(row.packageJson)));
+    return {
+      attempts: row.attempts ?? (clock.attempts > 0 ? clock.attempts : null),
+      durationMs: row.durationMs ?? clock.durationMs,
+    };
+  } catch {
+    return { attempts: row.attempts, durationMs: row.durationMs };
+  }
+}
+
+export async function setSubmissionProviderAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  const providerId = String(formData.get("providerId") ?? "").trim();
+  if (!id || !providerId) return;
+  const db = await ensureReady();
+  const [row] = await db.select().from(submissions).where(eq(submissions.id, id)).limit(1);
+  if (!row) return;
+
+  const catalog = await loadCatalog();
+  const name = catalog.providers[providerId]?.name ?? providerId;
+  await db
+    .update(submissions)
+    .set({
+      provider: providerId,
+      reviewNote: `Provider set to ${name}.`,
+    })
+    .where(eq(submissions.id, id));
+
+  if (row.status === "published") {
+    const match = await detectFromRun(db, {
+      ...hintsFromSubmission({ ...row, provider: providerId }),
+      provider: providerId,
+    });
+    if (match) {
+      await ensureCatalogIdentity(db, { ...match, providerId, providerName: name });
+      revalidatePath("/");
+      revalidatePath("/stacks");
+      revalidatePath(`/models/${match.slug}`);
+    }
+  }
   revalidatePath("/admin/submissions");
 }
 
 export async function publishSubmissionAction(formData: FormData): Promise<void> {
   await requireAdmin();
   const id = String(formData.get("id") ?? "");
+  await applyPublishedSubmission(id, {
+    reviewNote: undefined,
+  });
+}
+
+async function applyPublishedSubmission(
+  id: string,
+  options?: { reviewNote?: string },
+): Promise<void> {
   const db = await ensureReady();
   const [row] = await db.select().from(submissions).where(eq(submissions.id, id)).limit(1);
   if (!row || row.status === "published") return;
+  const clock = clockFromSubmission(row);
 
   const now = new Date().toISOString();
-  const slug = row.modelSlug;
-  const catalog = await publishedBySku(row.sku);
-  let [model] = catalog
-    ? [catalog.model]
-    : await db.select().from(models).where(eq(models.slug, slug)).limit(1);
-  if (!model) {
-    const modelId = crypto.randomUUID();
-    await db.insert(models).values({
-      id: modelId,
-      slug,
-      name: row.sku,
-      lab: "Unlisted",
-      tokenizerKey: "manual",
-      status: "published",
+  const detected = await resolveRunIdentity(hintsFromSubmission(row));
+
+  let model = detected.local?.model ?? null;
+  if (detected.match) {
+    const persisted = await ensureCatalogIdentity(db, detected.match, {
       notes: `Opened from a screened package ${row.integrity.slice(0, 12)}.`,
-      createdAt: now,
-      updatedAt: now,
     });
-    [model] = await db.select().from(models).where(eq(models.id, modelId)).limit(1);
+    model = persisted.model;
+  } else if (!model) {
+    const slug = row.modelSlug;
+    const [existing] = await db.select().from(models).where(eq(models.slug, slug)).limit(1);
+    if (existing) {
+      model = existing;
+    } else {
+      const modelId = crypto.randomUUID();
+      await db.insert(models).values({
+        id: modelId,
+        slug,
+        name: row.sku,
+        lab: "Unlisted",
+        tokenizerKey: "manual",
+        status: "published",
+        notes: `Opened from a screened package ${row.integrity.slice(0, 12)}.`,
+        createdAt: now,
+        updatedAt: now,
+      });
+      [model] = await db.select().from(models).where(eq(models.id, modelId)).limit(1);
+    }
+    if (model) {
+      const eps = await db.select().from(endpoints).where(eq(endpoints.modelId, model.id));
+      if (!eps.find((item) => item.sku === row.sku)) {
+        await db.insert(endpoints).values({
+          id: crypto.randomUUID(),
+          modelId: model.id,
+          provider: row.provider || "unlisted",
+          sku: row.sku,
+          displayName: row.sku,
+          listInput: 0,
+          listOutput: null,
+          listCacheHit: null,
+          listCacheWrite: null,
+          contextNote: "Opened from a screened community package.",
+          status: "published",
+          sortOrder: 0,
+        });
+      }
+    }
   }
   if (!model) return;
-
-  const eps = await db.select().from(endpoints).where(eq(endpoints.modelId, model.id));
-  const match =
-    catalog?.endpoint ??
-    eps.find((item) => item.sku === row.sku);
-  if (!match) {
-    await db.insert(endpoints).values({
-      id: crypto.randomUUID(),
-      modelId: model.id,
-      provider: catalog?.endpoint.provider ?? "unlisted",
-      sku: row.sku,
-      displayName: row.sku,
-      listInput: catalog?.endpoint.listInput ?? 0,
-      listOutput: catalog?.endpoint.listOutput ?? null,
-      listCacheHit: catalog?.endpoint.listCacheHit ?? null,
-      listCacheWrite: null,
-      contextNote: "Opened from a screened community package.",
-      status: "published",
-      sortOrder: 0,
-    });
-  }
 
   await db
     .insert(workRuns)
@@ -380,6 +537,9 @@ export async function publishSubmissionAction(formData: FormData): Promise<void>
       outputTokens: row.outputTokens,
       reasoningTokens: row.reasoningTokens,
       cacheHitTokens: row.cacheHitTokens,
+      cacheWriteTokens: row.cacheWriteTokens ?? 0,
+      attempts: clock.attempts,
+      durationMs: clock.durationMs,
       source: "official",
       notes: `Community package ${row.integrity}`,
       measuredAt: now,
@@ -393,6 +553,9 @@ export async function publishSubmissionAction(formData: FormData): Promise<void>
         outputTokens: row.outputTokens,
         reasoningTokens: row.reasoningTokens,
         cacheHitTokens: row.cacheHitTokens,
+        cacheWriteTokens: row.cacheWriteTokens ?? 0,
+        attempts: clock.attempts,
+        durationMs: clock.durationMs,
         source: "official",
         notes: `Community package ${row.integrity}`,
         measuredAt: now,
@@ -414,17 +577,19 @@ export async function publishSubmissionAction(formData: FormData): Promise<void>
     .set({
       status: "published",
       reviewNote:
-        row.status === "rejected"
+        options?.reviewNote ??
+        (row.status === "rejected"
           ? "Published by admin override."
-          : "Published to Stacks.",
+          : "Published to Stacks."),
     })
     .where(eq(submissions.id, id));
 
   revalidatePath("/");
   revalidatePath("/stacks");
-  revalidatePath(`/models/${slug}`);
+  revalidatePath(`/models/${model.slug}`);
   revalidatePath("/admin/submissions");
   revalidatePath("/admin/users");
+  revalidatePath("/eval");
 }
 
 export async function unpublishSubmissionAction(formData: FormData): Promise<void> {

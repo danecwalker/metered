@@ -12,9 +12,9 @@ const WORK_MU = 500_000;
 const HARNESS = { id: "hrs_api", name: "API" };
 
 describe("official suite size", () => {
-  it("is 1 job on work-2026.08-py3", () => {
-    assert.equal(WORK_SUITE_VERSION, "work-2026.08-py3");
-    assert.equal(OFFICIAL_TASK_COUNT, 1);
+  it("is 3 jobs on work-2026.08-py4", () => {
+    assert.equal(WORK_SUITE_VERSION, "work-2026.08-py4");
+    assert.equal(OFFICIAL_TASK_COUNT, 3);
   });
 });
 

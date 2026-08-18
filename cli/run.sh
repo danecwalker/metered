@@ -91,10 +91,8 @@ fi
 HERE=$PWD
 YAML="${METERED_YAML:-$HERE/metered-eval.yaml}"
 
-if [[ "$have_model_name" -eq 0 || "$have_list_input" -eq 0 ]]; then
-  missing=()
-  [[ "$have_model_name" -eq 0 ]] && missing+=(--model-name)
-  [[ "$have_list_input" -eq 0 ]] && missing+=(--list-input)
+if [[ "$have_model_name" -eq 0 ]]; then
+  missing=(--model-name)
   say "run.sh: missing ${missing[*]}"
   say "example:"
   say "  $EXAMPLE"

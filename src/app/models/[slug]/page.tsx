@@ -11,7 +11,9 @@ import {
   workCostUsd,
   workPricePerPass,
 } from "@/features/pricing/math";
-import { fert, money, moneyFine, whole } from "@/shared/lib/format";
+import { modelsDevUrl } from "@/features/catalog/resolve";
+import { elapsed, fert, money, moneyFine, whole } from "@/shared/lib/format";
+import { CatalogLogo } from "@/shared/ui/catalog-logo";
 
 export const dynamic = "force-dynamic";
 
@@ -37,8 +39,19 @@ export default async function ModelPage({ params }: Props) {
     <article className="wrap section">
       <p className="model-meta">
         {model.lab} / {model.tokenizerKey}
+        {model.catalogId ? (
+          <>
+            {" · "}
+            <a href={modelsDevUrl(model.catalogId)}>models.dev</a>
+          </>
+        ) : null}
       </p>
-      <h1 className="section__title">{model.name}</h1>
+      <div className="model-title">
+        <CatalogLogo kind="lab" id={model.labId} name={model.lab} size={28} />
+        <h1 className="section__title" style={{ margin: 0 }}>
+          {model.name}
+        </h1>
+      </div>
       {model.notes ? <p className="section__lede">{model.notes}</p> : null}
 
       {composite.fertility != null ? (
@@ -61,6 +74,8 @@ export default async function ModelPage({ params }: Props) {
                 <tr>
                   <th>Stack</th>
                   <th className="num">Passed</th>
+                  <th className="num">Attempts</th>
+                  <th className="num">Time</th>
                   <th className="num">$ / MU</th>
                   <th className="num">Tokens / pass</th>
                   {published.map((endpoint) => (
@@ -77,6 +92,7 @@ export default async function ModelPage({ params }: Props) {
                     run.outputTokens,
                     run.reasoningTokens,
                     run.passed,
+                    run.cacheHitTokens,
                   );
                   const complete = runIsComplete(
                     run.passed,
@@ -89,9 +105,11 @@ export default async function ModelPage({ params }: Props) {
                       outputTokens: run.outputTokens,
                       reasoningTokens: run.reasoningTokens,
                       cacheHitTokens: run.cacheHitTokens,
+                      cacheWriteTokens: run.cacheWriteTokens ?? 0,
                       listInput: endpoint.listInput,
                       listOutput: endpoint.listOutput,
                       listCacheHit: endpoint.listCacheHit,
+                      listCacheWrite: endpoint.listCacheWrite,
                     });
                     const perPass =
                       total == null ? null : workPricePerPass(total, run.passed);
@@ -111,6 +129,10 @@ export default async function ModelPage({ params }: Props) {
                       <td className="num">
                         {run.passed == null ? "-" : `${run.passed}/${run.tasks}`}
                       </td>
+                      <td className="num">
+                        {run.attempts != null && run.attempts > 0 ? whole(run.attempts) : "-"}
+                      </td>
+                      <td className="num tnum">{elapsed(run.durationMs)}</td>
                       <td className="num true">{moneyFine(headline.et)}</td>
                       <td className="num">
                         {tpp == null ? "-" : whole(Math.round(tpp))}
@@ -178,18 +200,29 @@ export default async function ModelPage({ params }: Props) {
                 <th className="num">List in</th>
                 <th className="num">List out</th>
                 <th className="num">Cache hit</th>
+                <th className="num">Cache write</th>
               </tr>
             </thead>
             <tbody>
               {published.map((endpoint) => (
                 <tr key={endpoint.id}>
-                  <td>{endpoint.displayName}</td>
+                  <td>
+                    <div className="stack-lead">
+                      <CatalogLogo
+                        kind="provider"
+                        id={endpoint.providerId}
+                        name={endpoint.provider}
+                      />
+                      <span>{endpoint.displayName}</span>
+                    </div>
+                  </td>
                   <td>
                     <code>{endpoint.sku}</code>
                   </td>
                   <td className="num">{money(endpoint.listInput)}</td>
                   <td className="num">{money(endpoint.listOutput)}</td>
                   <td className="num">{money(endpoint.listCacheHit)}</td>
+                  <td className="num">{money(endpoint.listCacheWrite)}</td>
                 </tr>
               ))}
             </tbody>

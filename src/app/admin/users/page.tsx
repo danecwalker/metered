@@ -7,7 +7,10 @@ import {
   setUserRoleAction,
   unbanUserAction,
 } from "@/features/admin/users";
-import { REPUTATION_ADD_MODEL } from "@/features/account/reputation";
+import {
+  REPUTATION_ADD_MODEL,
+  REPUTATION_AUTO_PUBLISH,
+} from "@/features/account/reputation";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +28,9 @@ export default async function AdminUsersPage({ searchParams }: Props) {
       <p className="section__lede">
         The system auto-blocks bad runs and auto-bans repeat identity abuse.
         You can unban, set reputation, and publish a blocked package anyway.
-        Reputation {REPUTATION_ADD_MODEL}+ can file a run for a SKU that is
-        not on the catalog yet.
+        Reputation {REPUTATION_AUTO_PUBLISH}+ with no prior rejects
+        publishes on submit. Reputation {REPUTATION_ADD_MODEL}+ can file a
+        SKU that models.dev does not know yet.
       </p>
 
       <form className="mb-8 flex flex-wrap gap-2" action="/admin/users" method="get">

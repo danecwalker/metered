@@ -4,14 +4,18 @@ export const SUITE_GITHUB_REPO =
 
 export function evalBootstrap(repo = SUITE_GITHUB_REPO) {
   const clone = `git clone https://github.com/${repo}.git\ncd metered-suite`;
-  const run = "python3 -m metered_suite   # Docker required";
+  const init = "python3 -m metered_suite init";
+  const run =
+    "python3 -m metered_suite <harness> --model <sku> --effort max\n# Docker required. Harness names come from harness.yaml";
   return {
     repo,
-    init: clone,
+    clone,
+    init,
     run,
     initRemote: clone,
     runRemote: run,
-    initBlock: `${clone}\n# edit main.py: harness, model, effort, flags`,
+    cloneBlock: clone,
+    initBlock: `${clone}\n${init}`,
     runBlock: run,
   };
 }

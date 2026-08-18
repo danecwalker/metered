@@ -111,6 +111,7 @@ export function verifyPackage(pkg: EvalPackage, official: OfficialSuite): Verify
     pkg.totals.output === recomputed.output &&
     pkg.totals.reasoning === recomputed.reasoning &&
     pkg.totals.cacheHit === recomputed.cacheHit &&
+    (pkg.totals.cacheWrite ?? 0) === recomputed.cacheWrite &&
     pkg.totals.passed === recomputed.passed;
   if (!checks.totals) {
     issues.push({

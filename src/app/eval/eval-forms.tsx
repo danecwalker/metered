@@ -2,6 +2,7 @@
 
 import { FileJson, Upload } from "lucide-react";
 import { useActionState, useId, useRef, useState } from "react";
+import { REPUTATION_AUTO_PUBLISH } from "@/features/account/reputation";
 import { submitPackageAction, type SubmitState } from "@/features/eval/actions";
 import { SubmitButton } from "@/shared/ui/form-status";
 
@@ -127,8 +128,9 @@ export function SubmitPackageForm() {
       ) : null}
       {state.ok ? (
         <p className="alert alert--ok" role="status">
-          Suite-verified and queued. An admin still has to publish it to
-          Stacks. Id {state.id}.
+          {state.published
+            ? `Suite-verified and published to Stacks. Id ${state.id}.`
+            : `Suite-verified and queued for review. Reputation ${REPUTATION_AUTO_PUBLISH}+ publishes on submit. Id ${state.id}.`}
         </p>
       ) : null}
 

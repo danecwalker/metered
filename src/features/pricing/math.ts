@@ -1,6 +1,6 @@
 export const CHARS_PER_MU = 4;
 export const BASKET_VERSION = "basket-2026.08-preview";
-export const WORK_SUITE_VERSION = "work-2026.08-py3";
+export const WORK_SUITE_VERSION = "work-2026.08-py4";
 export const DEFAULT_MAX_ATTEMPTS = 3;
 
 export function normalizeText(text: string): string {
@@ -39,17 +39,45 @@ export function costForTokens(
 }
 
 /**
+ * OpenAI-style reports fold cache reads into input. Anthropic/xAI report
+ * uncached input and cache reads as separate counters (cache often larger).
+ */
+export function uncachedInputTokens(inputTokens: number, cacheHitTokens: number): number {
+  if (cacheHitTokens > 0 && cacheHitTokens <= inputTokens) {
+    return inputTokens - cacheHitTokens;
+  }
+  return Math.max(0, inputTokens);
+}
+
+/**
+ * Reasoning is usually a subset of output (Grok, OpenAI). When it is larger
+ * than output, the harness reported thinking as its own bucket.
+ */
+export function billedOutputTokens(outputTokens: number, reasoningTokens: number): number {
+  if (reasoningTokens > 0 && reasoningTokens <= outputTokens) {
+    return outputTokens;
+  }
+  return outputTokens + reasoningTokens;
+}
+
+/**
  * All billed tokens — retries, thinking, failed attempts — per task that
- * passed. Unpassed work is not a useful rate.
+ * passed. Unpassed work is not a useful rate. Cache reads are a price
+ * discount, not extra work, so they drop out of this rate.
  */
 export function tokensPerPass(
   inputTokens: number,
   outputTokens: number,
   reasoningTokens: number,
   passed: number | null | undefined,
+  cacheHitTokens = 0,
 ): number | null {
   if (passed == null || passed <= 0) return null;
-  return (inputTokens + outputTokens + reasoningTokens) / passed;
+  return (
+    (uncachedInputTokens(inputTokens, cacheHitTokens) +
+      billedOutputTokens(outputTokens, reasoningTokens)) /
+    passed
+  );
 }
 
 export function workCostUsd(args: {
@@ -57,20 +85,23 @@ export function workCostUsd(args: {
   outputTokens: number;
   reasoningTokens: number;
   cacheHitTokens: number;
+  cacheWriteTokens?: number;
   listInput: number;
   listOutput: number | null;
   listCacheHit: number | null;
+  listCacheWrite?: number | null;
 }): number | null {
   const outputRate = args.listOutput;
   if (outputRate == null) return null;
-  const visibleAndThought = args.outputTokens + args.reasoningTokens;
-  const cacheRate = args.listCacheHit;
   const cached = args.cacheHitTokens;
-  const uncachedInput = Math.max(0, args.inputTokens - cached);
+  const written = args.cacheWriteTokens ?? 0;
+  const hitRate = args.listCacheHit ?? args.listInput;
+  const writeRate = args.listCacheWrite ?? args.listInput;
   return (
-    costForTokens(uncachedInput, args.listInput) +
-    (cacheRate == null ? costForTokens(cached, args.listInput) : costForTokens(cached, cacheRate)) +
-    costForTokens(visibleAndThought, outputRate)
+    costForTokens(uncachedInputTokens(args.inputTokens, cached), args.listInput) +
+    costForTokens(written, writeRate) +
+    costForTokens(cached, hitRate) +
+    costForTokens(billedOutputTokens(args.outputTokens, args.reasoningTokens), outputRate)
   );
 }
 

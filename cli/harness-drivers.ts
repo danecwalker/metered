@@ -116,7 +116,12 @@ async function completeOnce(args: {
     usage?: {
       prompt_tokens?: number;
       completion_tokens?: number;
-      prompt_tokens_details?: { cached_tokens?: number };
+      input_tokens?: number;
+      output_tokens?: number;
+      cache_read_input_tokens?: number;
+      cache_creation_input_tokens?: number;
+      reasoning_tokens?: number;
+      prompt_tokens_details?: { cached_tokens?: number; cache_write_tokens?: number };
       completion_tokens_details?: { reasoning_tokens?: number };
     };
   };
@@ -131,11 +136,49 @@ async function completeOnce(args: {
     output: payload.choices?.[0]?.message?.content ?? "",
     providerUsage: payload.usage ?? null,
     usage: {
-      input: int(usage.prompt_tokens),
-      output: int(usage.completion_tokens),
-      reasoning: int(usage.completion_tokens_details?.reasoning_tokens),
-      cacheHit: int(usage.prompt_tokens_details?.cached_tokens),
+      input: int(usage.prompt_tokens ?? usage.input_tokens),
+      output: int(usage.completion_tokens ?? usage.output_tokens),
+      reasoning: int(
+        usage.completion_tokens_details?.reasoning_tokens ?? usage.reasoning_tokens,
+      ),
+      cacheHit: int(
+        usage.prompt_tokens_details?.cached_tokens ?? usage.cache_read_input_tokens,
+      ),
+      cacheWrite: int(
+        usage.prompt_tokens_details?.cache_write_tokens ?? usage.cache_creation_input_tokens,
+      ),
     },
+  };
+}
+
+function fieldsFromUsage(parsed: Record<string, unknown>): Usage {
+  const details =
+    parsed.prompt_tokens_details && typeof parsed.prompt_tokens_details === "object"
+      ? (parsed.prompt_tokens_details as Record<string, unknown>)
+      : {};
+  const outDetails =
+    parsed.completion_tokens_details && typeof parsed.completion_tokens_details === "object"
+      ? (parsed.completion_tokens_details as Record<string, unknown>)
+      : {};
+  return {
+    input: int(parsed.input ?? parsed.prompt_tokens ?? parsed.input_tokens),
+    output: int(parsed.output ?? parsed.completion_tokens ?? parsed.output_tokens),
+    reasoning: int(
+      parsed.reasoning ?? parsed.reasoning_tokens ?? outDetails.reasoning_tokens,
+    ),
+    cacheHit: int(
+      parsed.cacheHit ??
+        parsed.cached_tokens ??
+        parsed.cache_read_input_tokens ??
+        details.cached_tokens,
+    ),
+    cacheWrite: int(
+      parsed.cacheWrite ??
+        parsed.cache_creation_input_tokens ??
+        parsed.cacheCreationTokens ??
+        parsed.inputCacheCreation ??
+        details.cache_write_tokens,
+    ),
   };
 }
 
@@ -146,19 +189,31 @@ function parseUsageBlob(text: string): Usage {
     if (!trimmed.startsWith("{")) continue;
     try {
       const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-      if ("input" in parsed || "prompt_tokens" in parsed) {
-        return {
-          input: int(parsed.input ?? parsed.prompt_tokens),
-          output: int(parsed.output ?? parsed.completion_tokens),
-          reasoning: int(parsed.reasoning ?? parsed.reasoning_tokens),
-          cacheHit: int(parsed.cacheHit ?? parsed.cached_tokens),
-        };
+      if (parsed.usage && typeof parsed.usage === "object") {
+        const nested = fieldsFromUsage(parsed.usage as Record<string, unknown>);
+        if (
+          nested.input +
+            nested.output +
+            nested.reasoning +
+            nested.cacheHit +
+            nested.cacheWrite >
+          0
+        ) {
+          return nested;
+        }
+      }
+      if (
+        "input" in parsed ||
+        "prompt_tokens" in parsed ||
+        "input_tokens" in parsed
+      ) {
+        return fieldsFromUsage(parsed);
       }
     } catch {
       continue;
     }
   }
-  return { input: 0, output: 0, reasoning: 0, cacheHit: 0 };
+  return { input: 0, output: 0, reasoning: 0, cacheHit: 0, cacheWrite: 0 };
 }
 
 function spawnCapture(bin: string, argv: string[]) {

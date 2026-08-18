@@ -157,7 +157,13 @@ export const listPublishedIndex = cache(async function listPublishedIndex(): Pro
   const tokenRates = runs
     .filter(({ run }) => runIsComplete(run.passed, run.tasks, officialTasks))
     .map(({ run }) =>
-      tokensPerPass(run.inputTokens, run.outputTokens, run.reasoningTokens, run.passed),
+      tokensPerPass(
+        run.inputTokens,
+        run.outputTokens,
+        run.reasoningTokens,
+        run.passed,
+        run.cacheHitTokens,
+      ),
     )
     .filter((value): value is number => value != null && value > 0);
   const cheapestTokens = tokenRates.length ? Math.min(...tokenRates) : null;
@@ -182,10 +188,12 @@ export const listPublishedIndex = cache(async function listPublishedIndex(): Pro
         name: model.name,
         stack: stackLabel(model.name, stack.harness?.name ?? null),
         lab: model.lab,
+        labId: model.labId,
         harnessId: stack.harness?.id ?? null,
         harnessName: stack.harness?.name ?? null,
         harnessSlug: stack.harness?.slug ?? null,
         provider: endpoint.provider,
+        providerId: endpoint.providerId,
         sku: endpoint.sku,
         displayName: endpoint.displayName,
         tokenizerKey: model.tokenizerKey,
@@ -276,11 +284,11 @@ export async function getModelById(id: string): Promise<ModelDetail | null> {
 }
 
 export async function listPublishedModelsForSearch(): Promise<
-  { slug: string; name: string; lab: string }[]
+  { slug: string; name: string; lab: string; labId: string | null }[]
 > {
   const db = await ensureReady();
   return db
-    .select({ slug: models.slug, name: models.name, lab: models.lab })
+    .select({ slug: models.slug, name: models.name, lab: models.lab, labId: models.labId })
     .from(models)
     .where(eq(models.status, "published"))
     .orderBy(asc(models.name));

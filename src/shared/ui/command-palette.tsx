@@ -4,8 +4,9 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CatalogLogo } from "@/shared/ui/catalog-logo";
 
-type ModelHit = { slug: string; name: string; lab: string };
+type ModelHit = { slug: string; name: string; lab: string; labId?: string | null };
 
 const PAGES = [
   { href: "/stacks", label: "Stacks", group: "Go" },
@@ -30,7 +31,7 @@ export function CommandPalette({ models }: { models: ModelHit[] }) {
     const q = query.trim().toLowerCase();
     const pageHits = PAGES.filter((page) =>
       q ? page.label.toLowerCase().includes(q) : true,
-    ).map((page) => ({ ...page, hint: "Page" }));
+    ).map((page) => ({ ...page, hint: "Page", labId: null as string | null }));
     const modelHits = models
       .filter((model) =>
         q
@@ -43,6 +44,7 @@ export function CommandPalette({ models }: { models: ModelHit[] }) {
         label: model.name,
         group: "Models",
         hint: model.lab,
+        labId: model.labId,
       }));
     return [...pageHits, ...modelHits];
   }, [models, query]);
@@ -146,7 +148,12 @@ export function CommandPalette({ models }: { models: ModelHit[] }) {
                     onMouseEnter={() => setActive(index)}
                     onClick={() => go(item.href)}
                   >
-                    <span>{item.label}</span>
+                    <span className="stack-lead" style={{ alignItems: "center" }}>
+                      {item.group === "Models" ? (
+                        <CatalogLogo kind="lab" id={item.labId} name={item.hint} size={16} />
+                      ) : null}
+                      <span>{item.label}</span>
+                    </span>
                     <span className="model-meta">{item.hint}</span>
                   </button>
                 </div>

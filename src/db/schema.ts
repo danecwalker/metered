@@ -21,6 +21,8 @@ export const models = pgTable("models", {
   tokenizerKey: text("tokenizer_key").notNull().$type<TokenizerKey>(),
   status: text("status").notNull().$type<ModelStatus>(),
   notes: text("notes"),
+  catalogId: text("catalog_id"),
+  labId: text("lab_id"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -40,7 +42,22 @@ export const endpoints = pgTable("endpoints", {
   contextNote: text("context_note"),
   status: text("status").notNull().$type<ModelStatus>(),
   sortOrder: integer("sort_order").notNull().default(0),
+  providerId: text("provider_id"),
+  catalogSku: text("catalog_sku"),
 });
+
+export const catalogAliases = pgTable(
+  "catalog_aliases",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").notNull().$type<"provider" | "sku">(),
+    source: text("source").notNull(),
+    target: text("target").notNull(),
+    note: text("note"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [uniqueIndex("catalog_aliases_kind_source").on(table.kind, table.source)],
+);
 
 export const measurements = pgTable(
   "measurements",
@@ -76,6 +93,9 @@ export const workRuns = pgTable(
     outputTokens: integer("output_tokens").notNull(),
     reasoningTokens: integer("reasoning_tokens").notNull().default(0),
     cacheHitTokens: integer("cache_hit_tokens").notNull().default(0),
+    cacheWriteTokens: integer("cache_write_tokens").notNull().default(0),
+    attempts: integer("attempts"),
+    durationMs: integer("duration_ms"),
     source: text("source").notNull().$type<MeasurementSource>(),
     notes: text("notes"),
     measuredAt: text("measured_at").notNull(),
@@ -128,6 +148,9 @@ export const submissions = pgTable("submissions", {
   outputTokens: integer("output_tokens").notNull(),
   reasoningTokens: integer("reasoning_tokens").notNull(),
   cacheHitTokens: integer("cache_hit_tokens").notNull(),
+  cacheWriteTokens: integer("cache_write_tokens").notNull().default(0),
+  attempts: integer("attempts"),
+  durationMs: integer("duration_ms"),
   packageJson: text("package_json").notNull(),
   note: text("note"),
   reviewNote: text("review_note"),
@@ -144,3 +167,4 @@ export type MeasurementRow = typeof measurements.$inferSelect;
 export type WorkRunRow = typeof workRuns.$inferSelect;
 export type SubmissionRow = typeof submissions.$inferSelect;
 export type UserRow = typeof users.$inferSelect;
+export type CatalogAliasRow = typeof catalogAliases.$inferSelect;

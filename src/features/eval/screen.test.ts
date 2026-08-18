@@ -16,16 +16,16 @@ describe("screenSubmission", () => {
     assert.equal(report.recommend, "reject");
   });
 
-  it("rejects a Claude SKU under ChatGPT", () => {
+  it("accepts a DeepSeek SKU under Qwen", () => {
     const report = screenSubmission({
-      harnessSlug: "chatgpt",
-      sku: "claude-opus-4-6",
+      harnessSlug: "qwen",
+      sku: "deepseek-v4-flash-0731",
       catalogKnown: true,
       user: active,
       peers: [],
     });
-    assert.equal(report.identity, "bad");
-    assert.equal(report.recommend, "reject");
+    assert.equal(report.identity, "ok");
+    assert.equal(report.recommend, "hold");
   });
 
   it("rejects a new SKU from a low-reputation user", () => {
@@ -40,7 +40,7 @@ describe("screenSubmission", () => {
     assert.equal(report.recommend, "reject");
   });
 
-  it("holds a new SKU from a high-reputation user for review", () => {
+  it("publishes a new SKU from a high-reputation clean account", () => {
     const report = screenSubmission({
       harnessSlug: "claude",
       sku: "claude-opus-4-6",
@@ -48,11 +48,11 @@ describe("screenSubmission", () => {
       user: { ...active, reputation: 40 },
       peers: [],
     });
-    assert.equal(report.recommend, "hold");
+    assert.equal(report.recommend, "publish");
     assert.equal(report.catalog, "new");
   });
 
-  it("still holds a clean known SKU — nothing auto-posts", () => {
+  it("holds a clean known SKU from a new account", () => {
     const report = screenSubmission({
       harnessSlug: "claude",
       sku: "claude-opus-4-6",
@@ -62,5 +62,27 @@ describe("screenSubmission", () => {
     });
     assert.equal(report.recommend, "hold");
     assert.equal(report.identity, "ok");
+  });
+
+  it("publishes a clean known SKU from a high-reputation account", () => {
+    const report = screenSubmission({
+      harnessSlug: "claude",
+      sku: "claude-opus-4-6",
+      catalogKnown: true,
+      user: { ...active, reputation: 40 },
+      peers: [],
+    });
+    assert.equal(report.recommend, "publish");
+  });
+
+  it("holds a high-reputation user who already has a reject", () => {
+    const report = screenSubmission({
+      harnessSlug: "claude",
+      sku: "claude-opus-4-6",
+      catalogKnown: true,
+      user: { ...active, reputation: 40, rejectCount: 1 },
+      peers: [],
+    });
+    assert.equal(report.recommend, "hold");
   });
 });

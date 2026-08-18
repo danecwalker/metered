@@ -10,10 +10,12 @@ export type IndexRow = {
   name: string;
   stack: string;
   lab: string;
+  labId: string | null;
   harnessId: string | null;
   harnessName: string | null;
   harnessSlug: string | null;
   provider: string;
+  providerId: string | null;
   sku: string;
   displayName: string;
   tokenizerKey: TokenizerKey;

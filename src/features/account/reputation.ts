@@ -1,6 +1,7 @@
 export const REPUTATION_START = 10;
 export const REPUTATION_MAX = 100;
 export const REPUTATION_ADD_MODEL = 40;
+export const REPUTATION_AUTO_PUBLISH = 40;
 export const REJECTS_BEFORE_BAN = 3;
 export const REPUTATION_PUBLISH = 5;
 export const REPUTATION_CORROBORATE = 2;
@@ -12,6 +13,18 @@ export function clampReputation(value: number): number {
 
 export function canProposeModel(reputation: number, status: string): boolean {
   return status === "active" && reputation >= REPUTATION_ADD_MODEL;
+}
+
+export function canAutoPublish(
+  reputation: number,
+  status: string,
+  rejectCount = 0,
+): boolean {
+  return (
+    status === "active" &&
+    rejectCount === 0 &&
+    reputation >= REPUTATION_AUTO_PUBLISH
+  );
 }
 
 export function shouldBan(rejectCount: number, status: string): boolean {

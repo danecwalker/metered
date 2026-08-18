@@ -35,12 +35,33 @@ export const workRunFormSchema = z.object({
   outputTokens: z.coerce.number().int().nonnegative(),
   reasoningTokens: z.coerce.number().int().nonnegative(),
   cacheHitTokens: z.coerce.number().int().nonnegative(),
+  cacheWriteTokens: z.coerce.number().int().nonnegative(),
+  attempts: z.union([z.coerce.number().int().positive(), z.nan()]).optional(),
+  durationSec: z.union([z.coerce.number().int().nonnegative(), z.nan()]).optional(),
   notes: z.string().trim().optional(),
 });
 
 export const measurementFormSchema = z.object({
   sliceId: z.enum(["english", "code", "structured", "tools", "cjk", "instructions"]),
   nativeTokens: z.coerce.number().int().nonnegative("Token count cannot be negative."),
+});
+
+export const modelMetaSchema = z.object({
+  labId: z.string().trim().min(1).optional(),
+  tokenizerKey: z.enum(["o200k_base", "cl100k_base", "manual"]),
+  status: z.enum(["draft", "published"]),
+  notes: z.string().trim().optional(),
+});
+
+export const aliasFormSchema = z.object({
+  kind: z.enum(["provider", "sku"]),
+  source: z
+    .string()
+    .trim()
+    .min(1, "Add the name the run uses.")
+    .transform((value) => value.toLowerCase()),
+  target: z.string().trim().min(1, "Add the models.dev id."),
+  note: z.string().trim().optional(),
 });
 
 export function slugify(value: string): string {

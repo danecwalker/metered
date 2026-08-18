@@ -4,7 +4,7 @@ import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "@/db/schema";
 import { harnesses } from "@/db/schema";
-import { seedIfEmpty } from "@/db/seed";
+import { backfillRunClock, ensureOfficialCatalog, seedIfEmpty } from "@/db/seed";
 import { HARNESSES } from "@/features/harness/catalog";
 
 const DDL = `
@@ -40,6 +40,14 @@ CREATE TABLE IF NOT EXISTS endpoints (
   status TEXT NOT NULL,
   sort_order INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS catalog_aliases (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  source TEXT NOT NULL,
+  target TEXT NOT NULL,
+  note TEXT,
+  created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS measurements (
   id TEXT PRIMARY KEY,
   model_id TEXT NOT NULL REFERENCES models(id) ON DELETE CASCADE,
@@ -63,6 +71,9 @@ CREATE TABLE IF NOT EXISTS work_runs (
   output_tokens INTEGER NOT NULL,
   reasoning_tokens INTEGER NOT NULL DEFAULT 0,
   cache_hit_tokens INTEGER NOT NULL DEFAULT 0,
+  cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+  attempts INTEGER,
+  duration_ms INTEGER,
   source TEXT NOT NULL,
   notes TEXT,
   measured_at TEXT NOT NULL
@@ -88,6 +99,9 @@ CREATE TABLE IF NOT EXISTS submissions (
   output_tokens INTEGER NOT NULL,
   reasoning_tokens INTEGER NOT NULL,
   cache_hit_tokens INTEGER NOT NULL,
+  cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+  attempts INTEGER,
+  duration_ms INTEGER,
   package_json TEXT NOT NULL,
   note TEXT,
   review_note TEXT,
@@ -111,6 +125,20 @@ CREATE TABLE IF NOT EXISTS user_sessions (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   expires_at TEXT NOT NULL
 );
+ALTER TABLE work_runs ADD COLUMN IF NOT EXISTS cache_write_tokens INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS cache_write_tokens INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE work_runs ADD COLUMN IF NOT EXISTS attempts INTEGER;
+ALTER TABLE work_runs ADD COLUMN IF NOT EXISTS duration_ms INTEGER;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS attempts INTEGER;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS duration_ms INTEGER;
+ALTER TABLE models ADD COLUMN IF NOT EXISTS catalog_id TEXT;
+ALTER TABLE models ADD COLUMN IF NOT EXISTS lab_id TEXT;
+ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS provider_id TEXT;
+ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS catalog_sku TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS models_catalog_id
+  ON models (catalog_id) WHERE catalog_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS catalog_aliases_kind_source
+  ON catalog_aliases (kind, source);
 `;
 
 type Db = NodePgDatabase<typeof schema>;
@@ -165,6 +193,8 @@ async function boot(): Promise<Db> {
   await getPool().query(DDL);
   await seedHarnesses();
   await seedIfEmpty();
+  await ensureOfficialCatalog();
+  await backfillRunClock();
   return getDb();
 }
 

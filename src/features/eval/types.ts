@@ -33,6 +33,7 @@ export type EvalTaskResult = {
     output: number;
     reasoning: number;
     cacheHit: number;
+    cacheWrite: number;
   };
   providerUsage: unknown;
   passed: boolean | null;
@@ -52,6 +53,8 @@ export type EvalPackage = {
     harnessId: string;
     harnessSlug: string;
     provider: string;
+    providerId?: string;
+    baseUrl?: string;
     sku: string;
     setting: Effort;
     listInput: number;
@@ -69,6 +72,7 @@ export type EvalPackage = {
     output: number;
     reasoning: number;
     cacheHit: number;
+    cacheWrite: number;
   };
   integrity: string;
 };

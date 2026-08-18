@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { contentHash, integrityOf } from "@/features/eval/hash";
-import { sealPackage } from "@/features/eval/package";
+import { clockFromPackage, sealPackage } from "@/features/eval/package";
+import { elapsed } from "@/shared/lib/format";
 import type { OfficialSuite } from "@/features/eval/types";
 import { verifyPackage } from "@/features/eval/verify";
 
@@ -26,7 +27,10 @@ const official: OfficialSuite = {
 
 official.suiteHash = "locked";
 
-function makePkg(output = '{"ok":true}', usage = { input: 10, output: 4, reasoning: 0, cacheHit: 0 }) {
+function makePkg(
+  output = '{"ok":true}',
+  usage = { input: 10, output: 4, reasoning: 0, cacheHit: 0, cacheWrite: 0 },
+) {
   return sealPackage(
     {
       suiteVersion: official.suiteVersion,
@@ -88,5 +92,18 @@ describe("eval package verify", () => {
     pkg.integrity = integrityOf(body);
     const result = verifyPackage(pkg, official);
     assert.equal(result.checks.promptLock, false);
+  });
+
+  it("reads attempts and wall time from the sealed run", () => {
+    const pkg = makePkg();
+    pkg.run.tasks[0].attempts = 2;
+    pkg.run.startedAt = "2026-08-18T07:00:00.000Z";
+    pkg.run.finishedAt = "2026-08-18T07:23:20.000Z";
+    const clock = clockFromPackage(pkg);
+    assert.equal(clock.attempts, 2);
+    assert.equal(clock.durationMs, 23 * 60 * 1000 + 20 * 1000);
+    assert.equal(elapsed(clock.durationMs), "23m 20s");
+    assert.equal(elapsed(83_000), "1m 23s");
+    assert.equal(elapsed(4_000), "4s");
   });
 });

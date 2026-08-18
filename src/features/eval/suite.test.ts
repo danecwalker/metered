@@ -6,10 +6,10 @@ import { OFFICIAL_TASK_COUNT, loadOfficialSuite } from "./suite";
 import { WORK_SUITE_VERSION } from "@/features/pricing/math";
 
 describe("official lock", () => {
-  it("is the Python suite, one Harbor job, hash matches TypeScript integrity", () => {
+  it("is the Python suite, three Harbor jobs, hash matches TypeScript integrity", () => {
     assert.equal(lock.suiteVersion, WORK_SUITE_VERSION);
-    assert.equal(lock.tasks.length, 1);
-    assert.equal(OFFICIAL_TASK_COUNT, 1);
+    assert.equal(lock.tasks.length, 3);
+    assert.equal(OFFICIAL_TASK_COUNT, 3);
     const body = lock.tasks.map((task) => ({
       id: task.id,
       promptHash: task.promptHash,
@@ -24,6 +24,6 @@ describe("official lock", () => {
   it("loads the same lock the site verifies against", async () => {
     const suite = await loadOfficialSuite();
     assert.equal(suite.suiteHash, lock.suiteHash);
-    assert.equal(suite.tasks.length, 1);
+    assert.equal(suite.tasks.length, 3);
   });
 });

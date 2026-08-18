@@ -19,6 +19,8 @@ export type WorkSummary = {
   tokenEfficiency: number | null;
   costPerPass: number | null;
   dollarsPerMu: number | null;
+  attempts: number | null;
+  durationMs: number | null;
   source: MeasurementSource;
 };
 
@@ -31,6 +33,9 @@ export type WorkRunLike = {
   outputTokens: number;
   reasoningTokens: number;
   cacheHitTokens: number;
+  cacheWriteTokens?: number;
+  attempts?: number | null;
+  durationMs?: number | null;
   source: MeasurementSource;
 };
 
@@ -38,6 +43,7 @@ export type WorkPrices = {
   listInput: number;
   listOutput: number | null;
   listCacheHit: number | null;
+  listCacheWrite?: number | null;
 };
 
 export type RankableRow = {
@@ -59,18 +65,26 @@ export function summarizeWork(
     run.outputTokens,
     run.reasoningTokens,
     run.passed,
+    run.cacheHitTokens,
   );
   const total = workCostUsd({
     inputTokens: run.inputTokens,
     outputTokens: run.outputTokens,
     reasoningTokens: run.reasoningTokens,
     cacheHitTokens: run.cacheHitTokens,
+    cacheWriteTokens: run.cacheWriteTokens ?? 0,
     listInput: prices.listInput,
     listOutput: prices.listOutput,
     listCacheHit: prices.listCacheHit,
+    listCacheWrite: prices.listCacheWrite ?? null,
   });
   const hasUsage =
-    run.inputTokens + run.outputTokens + run.reasoningTokens + run.cacheHitTokens > 0;
+    run.inputTokens +
+      run.outputTokens +
+      run.reasoningTokens +
+      run.cacheHitTokens +
+      (run.cacheWriteTokens ?? 0) >
+    0;
   const perPass = total == null || !hasUsage ? null : workPricePerPass(total, run.passed);
   return {
     suiteVersion: run.suiteVersion,
@@ -88,6 +102,8 @@ export function summarizeWork(
     costPerPass: perPass,
     dollarsPerMu:
       complete && hasUsage && total != null ? dollarsPerMu(total, workMu) : null,
+    attempts: run.attempts && run.attempts > 0 ? run.attempts : null,
+    durationMs: run.durationMs != null && run.durationMs >= 0 ? run.durationMs : null,
     source: run.source,
   };
 }

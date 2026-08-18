@@ -2,7 +2,7 @@
 
 A **preview** public index of **finished work** as **`$ / MU`**, by **model × harness**.
 
-`$ / MU` is only defined after a **complete published run**: every official task passed, then an admin published the sealed package. Incomplete runs stay visible; they do not rank as cheap. Failed attempts and retries stay in the bill.
+`$ / MU` is only defined after a **complete published run**: every official task passed, then the sealed package is on the index. Reputation 40+ with a clean record publishes on submit. Other accounts wait for an admin. Incomplete runs stay visible; they do not rank as cheap. Failed attempts and retries stay in the bill.
 
 Evals are **local only**. The web app never accepts provider API keys. Method: `/methodology`.
 
@@ -36,18 +36,18 @@ npm run build
 
 ## Eval (local only)
 
-The official jobs live in [metered-suite](https://github.com/danecwalker/metered-suite). Clone that repo, edit only `main.py` so it calls your harness, then run. Docker is required: the agent works in an isolated checkout and a hidden verifier grades a git patch with no network.
+The official jobs live in [metered-suite](https://github.com/danecwalker/metered-suite). Clone that repo and run the CLI. Docker is required: the agent works in an isolated checkout and a hidden verifier grades a git patch with no network.
 
 ```bash
 git clone https://github.com/danecwalker/metered-suite
 cd metered-suite
-# edit main.py
-python3 -m metered_suite
+python3 -m metered_suite init
+python3 -m metered_suite qwen --model qwen3.8-max --effort max
 ```
 
-Upload the sealed `*.metered.json` at `/eval`. Suite-verified means the official jobs, answers, and totals check out. An admin still publishes at `/admin/submissions` before a row can rank.
+Upload the sealed `*.metered.json` at `/eval`. Suite-verified means the official jobs, answers, and totals check out. Reputation 40+ with no prior rejects publishes on submit. Other packages wait at `/admin/submissions`.
 
-**`$ / MU` needs a complete published run** of `work-2026.08-py3` **and** real token counts from that harness’s CLI adapter. A failed job is not cheaper than a finish. Zero usage is not a $0 rank.
+**`$ / MU` needs a complete published run** of `work-2026.08-py4` **and** real token counts from that harness CLI. A failed job is not cheaper than a finish. Zero usage is not a $0 rank.
 
 ## Deploy
 
@@ -64,13 +64,11 @@ npm start
 ## Admin
 
 1. Sign in at `/admin` after replacing the example secrets.
-2. **Add model**: name, lab, slug, tokenizer.
-   - `o200k_base` / `cl100k_base` can count the basket locally.
-   - `manual` is for Anthropic, Google, and anyone else: paste native token counts per slice.
-3. Add an endpoint (provider, SKU, list `$/M` input and output).
-4. Count the basket or enter slice token counts.
-5. Publish the model and the endpoint.
-6. Review `/eval` packages at `/admin/submissions`. Publishing writes a work run onto the index.
+2. Models and endpoints are not typed in by hand. A published package is matched against [models.dev](https://models.dev) (`@opencode-ai/models`). Name, lab, SKU, list prices, and logos come from that catalog.
+3. Map harness or SKU names at `/admin/aliases` when the run does not use the catalog id. Example: `qwen` → `alibaba`.
+4. Refresh prices from models.dev on the admin model list or a model page.
+5. Count the basket or enter slice token counts. `o200k_base` / `cl100k_base` can count locally. Everyone else is a pasted native count.
+6. Review held `/eval` packages at `/admin/submissions`. Reputation 40+ with a clean record already published on submit.
 
 Draft rows stay off the public index.
 

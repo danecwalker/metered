@@ -5,7 +5,10 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ensureReady } from "@/db/client";
-import { endpoints, models, submissions, workRuns } from "@/db/schema";
+import { catalogAliases, endpoints, models, submissions, workRuns } from "@/db/schema";
+import { normalizeToken } from "@/features/catalog/aliases";
+import { clearCatalogCache } from "@/features/catalog/models-dev";
+import { detectFromRun, ensureCatalogIdentity, refreshCatalogPrices } from "@/features/catalog/sync";
 import {
   ADMIN_COOKIE,
   authConfigured,
@@ -15,9 +18,11 @@ import {
   requireAdmin,
 } from "@/features/admin/auth";
 import {
+  aliasFormSchema,
   endpointFormSchema,
   measurementFormSchema,
   modelFormSchema,
+  modelMetaSchema,
   optionalNumber,
   workRunFormSchema,
 } from "@/features/admin/schemas";
@@ -38,6 +43,7 @@ function revalidatePublic(slug?: string) {
   revalidatePath("/methodology");
   if (slug) revalidatePath(`/models/${slug}`);
   revalidatePath("/admin");
+  revalidatePath("/admin/aliases");
 }
 
 export async function loginAction(
@@ -71,38 +77,6 @@ export async function logoutAction(): Promise<void> {
   redirect("/admin/login");
 }
 
-export async function createModelAction(
-  _prev: ActionState | null,
-  formData: FormData,
-): Promise<ActionState> {
-  await requireAdmin();
-  const parsed = modelFormSchema.safeParse({
-    name: formData.get("name"),
-    lab: formData.get("lab"),
-    slug: formData.get("slug"),
-    tokenizerKey: formData.get("tokenizerKey"),
-    status: formData.get("status"),
-    notes: formData.get("notes") || undefined,
-  });
-  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Check the form.");
-
-  const db = await ensureReady();
-  const existing = await db.select().from(models).where(eq(models.slug, parsed.data.slug)).limit(1);
-  if (existing.length) return fail("That slug is already in use.");
-
-  const now = new Date().toISOString();
-  const id = crypto.randomUUID();
-  await db.insert(models).values({
-    id,
-    ...parsed.data,
-    notes: parsed.data.notes ?? null,
-    createdAt: now,
-    updatedAt: now,
-  });
-  revalidatePublic(parsed.data.slug);
-  redirect(`/admin/models/${id}`);
-}
-
 export async function updateModelAction(
   _prev: ActionState | null,
   formData: FormData,
@@ -110,6 +84,52 @@ export async function updateModelAction(
   await requireAdmin();
   const id = String(formData.get("id") ?? "");
   if (!id) return fail("Missing model id.");
+
+  const db = await ensureReady();
+  const [existing] = await db.select().from(models).where(eq(models.id, id)).limit(1);
+  if (!existing) return fail("Model not found.");
+
+  if (existing.catalogId || formData.get("labId")) {
+    const parsed = modelMetaSchema.safeParse({
+      labId: formData.get("labId") || undefined,
+      tokenizerKey: formData.get("tokenizerKey"),
+      status: formData.get("status"),
+      notes: formData.get("notes") || undefined,
+    });
+    if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Check the form.");
+
+    const labId = parsed.data.labId ?? existing.labId ?? "";
+    if (labId && labId !== existing.labId) {
+      const match = await detectFromRun(db, {
+        sku: existing.catalogId ?? existing.slug,
+        lab: labId,
+        modelName: existing.name,
+      });
+      if (!match || match.labId !== labId) {
+        return fail("models.dev has no matching model under that lab.");
+      }
+      await ensureCatalogIdentity(db, match, { notes: parsed.data.notes ?? existing.notes });
+    }
+
+    await db
+      .update(models)
+      .set({
+        tokenizerKey: parsed.data.tokenizerKey,
+        status: parsed.data.status,
+        notes: parsed.data.notes ?? null,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(models.id, id));
+    revalidatePublic(existing.slug);
+    return {
+      ok: true,
+      message:
+        labId && labId !== existing.labId
+          ? `Lab set to ${labId}. Endpoints refreshed from models.dev.`
+          : "Model saved.",
+    };
+  }
+
   const parsed = modelFormSchema.safeParse({
     name: formData.get("name"),
     lab: formData.get("lab"),
@@ -120,7 +140,6 @@ export async function updateModelAction(
   });
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Check the form.");
 
-  const db = await ensureReady();
   const clash = await db
     .select()
     .from(models)
@@ -152,46 +171,8 @@ export async function deleteModelAction(formData: FormData): Promise<void> {
   redirect("/admin");
 }
 
-export async function createEndpointAction(
-  _prev: ActionState | null,
-  formData: FormData,
-): Promise<ActionState> {
-  await requireAdmin();
-  const modelId = String(formData.get("modelId") ?? "");
-  if (!modelId) return fail("Missing model id.");
-  const parsed = endpointFormSchema.safeParse({
-    provider: formData.get("provider"),
-    sku: formData.get("sku"),
-    displayName: formData.get("displayName"),
-    listInput: formData.get("listInput"),
-    listOutput: formData.get("listOutput"),
-    listCacheHit: formData.get("listCacheHit"),
-    listCacheWrite: formData.get("listCacheWrite"),
-    contextNote: formData.get("contextNote") || undefined,
-    status: formData.get("status"),
-  });
-  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Check the endpoint.");
-
-  const db = await ensureReady();
-  const [model] = await db.select().from(models).where(eq(models.id, modelId)).limit(1);
-  if (!model) return fail("Model not found.");
-
-  await db.insert(endpoints).values({
-    id: crypto.randomUUID(),
-    modelId,
-    provider: parsed.data.provider,
-    sku: parsed.data.sku,
-    displayName: parsed.data.displayName,
-    listInput: parsed.data.listInput,
-    listOutput: optionalNumber(formData.get("listOutput")),
-    listCacheHit: optionalNumber(formData.get("listCacheHit")),
-    listCacheWrite: optionalNumber(formData.get("listCacheWrite")),
-    contextNote: parsed.data.contextNote ?? null,
-    status: parsed.data.status,
-    sortOrder: 0,
-  });
-  revalidatePublic(model.slug);
-  return { ok: true, message: "Endpoint added." };
+export async function updateEndpointStatusAction(formData: FormData): Promise<void> {
+  await updateEndpointAction(null, formData);
 }
 
 export async function updateEndpointAction(
@@ -201,6 +182,19 @@ export async function updateEndpointAction(
   await requireAdmin();
   const id = String(formData.get("id") ?? "");
   if (!id) return fail("Missing endpoint id.");
+  const db = await ensureReady();
+  const [endpoint] = await db.select().from(endpoints).where(eq(endpoints.id, id)).limit(1);
+  if (!endpoint) return fail("Endpoint not found.");
+  const [model] = await db.select().from(models).where(eq(models.id, endpoint.modelId)).limit(1);
+
+  if (endpoint.catalogSku || endpoint.providerId) {
+    const status = String(formData.get("status") ?? "");
+    if (status !== "draft" && status !== "published") return fail("Check the endpoint.");
+    await db.update(endpoints).set({ status }).where(eq(endpoints.id, id));
+    revalidatePublic(model?.slug);
+    return { ok: true, message: "Endpoint status saved. Prices come from models.dev." };
+  }
+
   const parsed = endpointFormSchema.safeParse({
     provider: formData.get("provider"),
     sku: formData.get("sku"),
@@ -213,11 +207,6 @@ export async function updateEndpointAction(
     status: formData.get("status"),
   });
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Check the endpoint.");
-
-  const db = await ensureReady();
-  const [endpoint] = await db.select().from(endpoints).where(eq(endpoints.id, id)).limit(1);
-  if (!endpoint) return fail("Endpoint not found.");
-  const [model] = await db.select().from(models).where(eq(models.id, endpoint.modelId)).limit(1);
 
   await db
     .update(endpoints)
@@ -317,6 +306,9 @@ export async function saveWorkRunAction(
     outputTokens: formData.get("outputTokens"),
     reasoningTokens: formData.get("reasoningTokens") || 0,
     cacheHitTokens: formData.get("cacheHitTokens") || 0,
+    cacheWriteTokens: formData.get("cacheWriteTokens") || 0,
+    attempts: formData.get("attempts"),
+    durationSec: formData.get("durationSec"),
     notes: formData.get("notes") || undefined,
   });
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Check the work run.");
@@ -345,6 +337,12 @@ export async function saveWorkRunAction(
       outputTokens: parsed.data.outputTokens,
       reasoningTokens: parsed.data.reasoningTokens,
       cacheHitTokens: parsed.data.cacheHitTokens,
+      cacheWriteTokens: parsed.data.cacheWriteTokens,
+      attempts: optionalNumber(formData.get("attempts")),
+      durationMs: (() => {
+        const seconds = optionalNumber(formData.get("durationSec"));
+        return seconds == null ? null : seconds * 1000;
+      })(),
       source: "manual",
       notes: parsed.data.notes ?? null,
       measuredAt: now,
@@ -358,6 +356,12 @@ export async function saveWorkRunAction(
         outputTokens: parsed.data.outputTokens,
         reasoningTokens: parsed.data.reasoningTokens,
         cacheHitTokens: parsed.data.cacheHitTokens,
+        cacheWriteTokens: parsed.data.cacheWriteTokens,
+        attempts: optionalNumber(formData.get("attempts")),
+        durationMs: (() => {
+          const seconds = optionalNumber(formData.get("durationSec"));
+          return seconds == null ? null : seconds * 1000;
+        })(),
         source: "manual",
         notes: parsed.data.notes ?? null,
         measuredAt: now,
@@ -395,4 +399,69 @@ export async function deleteWorkRunAction(formData: FormData): Promise<void> {
     revalidatePath("/admin/submissions");
     revalidatePath(`/admin/models/${model.id}`);
   }
+}
+
+export async function refreshCatalogAction(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireAdmin();
+  const modelId = String(formData.get("modelId") ?? "").trim() || undefined;
+  const db = await ensureReady();
+  clearCatalogCache();
+  const wrote = await refreshCatalogPrices(db, modelId);
+  const [model] = modelId
+    ? await db.select().from(models).where(eq(models.id, modelId)).limit(1)
+    : [];
+  revalidatePublic(model?.slug);
+  return {
+    ok: true,
+    message:
+      wrote === 0
+        ? "models.dev had no updates for the rows on file."
+        : `Refreshed ${wrote} catalog row${wrote === 1 ? "" : "s"} from models.dev.`,
+  };
+}
+
+export async function createAliasAction(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireAdmin();
+  const parsed = aliasFormSchema.safeParse({
+    kind: formData.get("kind"),
+    source: formData.get("source"),
+    target: formData.get("target"),
+    note: formData.get("note") || undefined,
+  });
+  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Check the alias.");
+
+  const db = await ensureReady();
+  const source = normalizeToken(parsed.data.source);
+  const target = parsed.data.target.trim().toLowerCase();
+  try {
+    await db.insert(catalogAliases).values({
+      id: crypto.randomUUID(),
+      kind: parsed.data.kind,
+      source,
+      target,
+      note: parsed.data.note ?? null,
+      createdAt: new Date().toISOString(),
+    });
+  } catch {
+    return fail("That alias already exists.");
+  }
+  revalidatePath("/admin");
+  revalidatePath("/admin/aliases");
+  return { ok: true, message: `Mapped ${source} → ${target}.` };
+}
+
+export async function deleteAliasAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const db = await ensureReady();
+  await db.delete(catalogAliases).where(eq(catalogAliases.id, id));
+  revalidatePath("/admin");
+  revalidatePath("/admin/aliases");
 }
