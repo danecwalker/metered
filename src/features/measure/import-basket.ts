@@ -117,7 +117,7 @@ const COUNT_LAB_TO_CATALOG: Record<string, string> = {
   moonshot: "moonshotai",
 };
 
-/** Turn `anthropic:claude-opus-5` into a models.dev lookup. */
+/** Turn `anthropic:claude-opus-5` or `deepseek/deepseek-v4-flash-0731` into a models.dev lookup. */
 export function catalogQueryOf(
   tokenizer: Pick<ImportableTokenizer, "id" | "catalogId" | "sku">,
 ): { lab: string; sku: string; catalogId: string } | null {
@@ -126,10 +126,15 @@ export function catalogQueryOf(
     const sku = tokenizer.catalogId.slice(lab.length + 1);
     return { lab, sku, catalogId: tokenizer.catalogId };
   }
+  if (tokenizer.id.includes("/")) {
+    const lab = tokenizer.id.slice(0, tokenizer.id.indexOf("/"));
+    const sku = tokenizer.id.slice(lab.length + 1);
+    return { lab, sku, catalogId: tokenizer.id };
+  }
   const sku = tokenizer.sku ?? skuFromTokenizerId(tokenizer.id);
   if (!sku) return null;
   const prefix = tokenizer.id.includes(":") ? tokenizer.id.slice(0, tokenizer.id.indexOf(":")) : "";
-  const lab = COUNT_LAB_TO_CATALOG[prefix];
+  const lab = COUNT_LAB_TO_CATALOG[prefix] ?? (prefix || null);
   if (!lab) return null;
   return { lab, sku, catalogId: `${lab}/${sku}` };
 }

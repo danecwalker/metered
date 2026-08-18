@@ -11,7 +11,12 @@ describe("parseModelRef", () => {
     });
     assert.deepEqual(parseModelRef("claude-fable-5")?.catalogId, "anthropic/claude-fable-5");
     assert.deepEqual(parseModelRef("grok-4.6")?.catalogId, "xai/grok-4.6");
-    assert.deepEqual(parseModelRef("google/gemini-2.5-pro")?.lab, "gemini");
+    assert.deepEqual(parseModelRef("google/gemini-2.5-pro")?.lab, "google");
+    assert.deepEqual(parseModelRef("deepseek/deepseek-v4-flash-0731"), {
+      lab: "deepseek",
+      sku: "deepseek-v4-flash-0731",
+      catalogId: "deepseek/deepseek-v4-flash-0731",
+    });
     assert.equal(parseModelRef("not-a-model"), null);
   });
 });

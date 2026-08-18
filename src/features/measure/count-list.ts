@@ -1,34 +1,23 @@
 import { parse as parseYaml } from "yaml";
 
-export const COUNT_LABS = ["anthropic", "xai", "gemini", "moonshot"] as const;
-export type CountLab = (typeof COUNT_LABS)[number];
-
 export type CountTarget = {
-  lab: CountLab;
+  lab: string;
   sku: string;
   catalogId: string;
 };
 
-const LAB_OF: Record<string, CountLab> = {
-  anthropic: "anthropic",
-  xai: "xai",
-  google: "gemini",
-  gemini: "gemini",
-  moonshot: "moonshot",
-  moonshotai: "moonshot",
-  kimi: "moonshot",
-};
-
-const CATALOG_LAB: Record<CountLab, string> = {
-  anthropic: "anthropic",
-  xai: "xai",
+const BARE_LAB: Record<string, string> = {
+  claude: "anthropic",
+  grok: "xai",
   gemini: "google",
+  kimi: "moonshotai",
   moonshot: "moonshotai",
+  qwen: "alibaba",
+  deepseek: "deepseek",
+  llama: "meta",
+  mistral: "mistral",
+  gemma: "google",
 };
-
-function foldLab(value: string): CountLab | null {
-  return LAB_OF[value.trim().toLowerCase()] ?? null;
-}
 
 export function parseModelRef(raw: string): CountTarget | null {
   const token = raw.trim().replace(/^["']|["']$/g, "");
@@ -36,24 +25,16 @@ export function parseModelRef(raw: string): CountTarget | null {
 
   if (token.includes("/")) {
     const slash = token.indexOf("/");
-    const lab = foldLab(token.slice(0, slash));
+    const lab = token.slice(0, slash).trim().toLowerCase();
     const sku = token.slice(slash + 1).trim();
     if (!lab || !sku) return null;
-    return { lab, sku, catalogId: `${CATALOG_LAB[lab]}/${sku}` };
+    return { lab, sku, catalogId: `${lab}/${sku}` };
   }
 
   const lower = token.toLowerCase();
-  const guessed: CountLab | null = lower.startsWith("claude")
-    ? "anthropic"
-    : lower.startsWith("grok")
-      ? "xai"
-      : lower.startsWith("gemini")
-        ? "gemini"
-        : lower.startsWith("kimi") || lower.startsWith("moonshot")
-          ? "moonshot"
-          : null;
+  const guessed = Object.entries(BARE_LAB).find(([prefix]) => lower.startsWith(prefix))?.[1];
   if (!guessed) return null;
-  return { lab: guessed, sku: token, catalogId: `${CATALOG_LAB[guessed]}/${token}` };
+  return { lab: guessed, sku: token, catalogId: `${guessed}/${token}` };
 }
 
 function pushUnique(out: CountTarget[], target: CountTarget) {
@@ -61,17 +42,14 @@ function pushUnique(out: CountTarget[], target: CountTarget) {
   out.push(target);
 }
 
-function fromStringList(values: unknown, lab?: CountLab): CountTarget[] {
+function fromStringList(values: unknown, lab?: string): CountTarget[] {
   if (!Array.isArray(values)) return [];
   const out: CountTarget[] = [];
   for (const item of values) {
     if (typeof item !== "string") continue;
     if (lab && !item.includes("/")) {
-      pushUnique(out, {
-        lab,
-        sku: item.trim(),
-        catalogId: `${CATALOG_LAB[lab]}/${item.trim()}`,
-      });
+      const sku = item.trim();
+      if (sku) pushUnique(out, { lab, sku, catalogId: `${lab}/${sku}` });
       continue;
     }
     const parsed = parseModelRef(item);
@@ -84,31 +62,25 @@ export function parseCountList(text: string): CountTarget[] {
   const trimmed = text.trim();
   if (!trimmed) return [];
 
-  const looksYaml =
-    trimmed.startsWith("{") ||
-    trimmed.startsWith("-") ||
-    /^(models|anthropic|xai|google|gemini|moonshot|moonshotai|kimi)\s*:/m.test(trimmed);
-
-  if (looksYaml) {
-    let raw: unknown;
-    try {
-      raw = parseYaml(trimmed);
-    } catch {
-      raw = null;
-    }
-    if (Array.isArray(raw)) return fromStringList(raw);
-    if (raw && typeof raw === "object") {
+  try {
+    const raw = parseYaml(trimmed);
+    if (Array.isArray(raw)) {
+      const rows = fromStringList(raw);
+      if (rows.length > 0) return rows;
+    } else if (raw && typeof raw === "object") {
       const rec = raw as Record<string, unknown>;
       const out: CountTarget[] = [];
       for (const row of fromStringList(rec.models)) pushUnique(out, row);
       for (const [key, value] of Object.entries(rec)) {
         if (key === "models") continue;
-        const lab = foldLab(key);
-        if (!lab) continue;
+        const lab = key.trim().toLowerCase();
+        if (!lab || lab.startsWith("#")) continue;
         for (const row of fromStringList(value, lab)) pushUnique(out, row);
       }
       if (out.length > 0) return out;
     }
+  } catch {
+    // plain text list
   }
 
   const out: CountTarget[] = [];

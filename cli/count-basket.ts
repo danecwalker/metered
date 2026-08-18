@@ -12,12 +12,14 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { SLICES } from "@/features/basket/slices";
+import { loadCatalog } from "@/features/catalog/models-dev";
 import {
   mergeCountTargets,
   parseCountList,
   parseModelRef,
   type CountTarget,
 } from "@/features/measure/count-list";
+import { routeCountTarget, type CountRoute } from "@/features/measure/count-route";
 import {
   BASKET_VERSION,
   characterCount,
@@ -65,8 +67,9 @@ Local tables run always. Lab count APIs run when a key is set.
   npm run count:basket
   npm run count:basket -- --cli-auth --out .cache/basket-counts.json
 
-Lab APIs come from cli/count-basket.yaml (or .txt). Add a models.dev
-id to that file, or pass --model. The site import matches those ids.
+Models come from cli/count-basket.yaml (or .txt). Open-weight rows
+count locally from Hugging Face. Closed labs use a count API.
+Add a models.dev id, or pass --model. The site import matches those ids.
 
 --models file     list of models (default cli/count-basket.yaml)
 --model id[,id]   extra models.dev ids or SKUs (claude-opus-5)
@@ -478,23 +481,33 @@ function xaiCounter(model: string, label: string): Counter {
   };
 }
 
-function prettySku(sku: string): string {
-  return sku
-    .split(/[-_]/g)
-    .map((part) => (part.length === 0 ? part : part[0].toUpperCase() + part.slice(1)))
-    .join(" ");
-}
-
-function withCatalog(counter: Counter, target: CountTarget): Counter {
-  return { ...counter, catalogId: target.catalogId, sku: target.sku };
-}
-
-function apiCounter(target: CountTarget): Counter {
-  const label = prettySku(target.sku);
-  if (target.lab === "anthropic") return withCatalog(anthropicCounter(target.sku, label), target);
-  if (target.lab === "xai") return withCatalog(xaiCounter(target.sku, label), target);
-  if (target.lab === "gemini") return withCatalog(geminiCounter(target.sku, label), target);
-  return withCatalog(moonshotCounter(target.sku, label), target);
+function counterFromRoute(route: Exclude<CountRoute, { via: "none" }>, cacheDir: string): Counter {
+  if (route.via === "local") {
+    return {
+      ...hfCounter({
+        id: route.catalogId,
+        label: route.label,
+        repo: route.repo,
+        cacheDir,
+      }),
+      catalogId: route.catalogId,
+      sku: route.sku,
+    };
+  }
+  const base =
+    route.lab === "anthropic"
+      ? anthropicCounter(route.sku, route.label)
+      : route.lab === "xai"
+        ? xaiCounter(route.sku, route.label)
+        : route.lab === "gemini"
+          ? geminiCounter(route.sku, route.label)
+          : moonshotCounter(route.sku, route.label);
+  return {
+    ...base,
+    id: route.catalogId,
+    catalogId: route.catalogId,
+    sku: route.sku,
+  };
 }
 
 async function loadTargets(flags: Flags): Promise<{ file: string | null; targets: CountTarget[] }> {
@@ -568,7 +581,10 @@ function moonshotCounter(model: string, label: string): Counter {
   };
 }
 
-function buildCounters(cacheDir: string, targets: CountTarget[]): Counter[] {
+function buildCounters(
+  cacheDir: string,
+  routes: Exclude<CountRoute, { via: "none" }>[],
+): Counter[] {
   return [
     tiktokenCounter("o200k_base"),
     tiktokenCounter("cl100k_base"),
@@ -602,7 +618,7 @@ function buildCounters(cacheDir: string, targets: CountTarget[]): Counter[] {
       repo: "unsloth/gemma-2-9b-it",
       cacheDir,
     }),
-    ...targets.map(apiCounter),
+    ...routes.map((route) => counterFromRoute(route, cacheDir)),
   ];
 }
 
@@ -728,10 +744,26 @@ async function main() {
   }
 
   const { file: listFile, targets } = await loadTargets(flags);
+  const catalog = await loadCatalog();
+  const routed = targets.map((target) => routeCountTarget(target, catalog));
+  const usable = routed.filter(
+    (route): route is Exclude<CountRoute, { via: "none" }> => route.via !== "none",
+  );
   if (flags.list === true) {
     process.stdout.write(`${listFile ?? "(no list file)"}\n`);
-    for (const target of targets) process.stdout.write(`  ${target.catalogId}\n`);
+    for (const route of routed) {
+      const extra =
+        route.via === "local"
+          ? `local  ${route.repo}`
+          : route.via === "api"
+            ? "api"
+            : `skip  ${route.reason}`;
+      process.stdout.write(`  ${route.catalogId}  ${extra}\n`);
+    }
     return;
+  }
+  for (const route of routed) {
+    if (route.via === "none") log(`skip  ${route.catalogId}  ${route.reason}`);
   }
 
   const cacheDir = path.resolve(str(flags, "cache", path.join(ROOT, ".cache", "tokenizers")));
@@ -740,11 +772,15 @@ async function main() {
   log(
     `${BASKET_VERSION}  ${slices.length} slices  ${chars} chars  ${meteredUnits(chars).toFixed(2)} MU`,
   );
-  if (listFile) log(`models ${listFile}  ${targets.length} lab APIs`);
+  if (listFile) {
+    const localN = usable.filter((route) => route.via === "local").length;
+    const apiN = usable.filter((route) => route.via === "api").length;
+    log(`models ${listFile}  ${localN} local  ${apiN} api`);
+  }
 
   const localOnly = flags["local-only"] === true;
   const apiOnly = flags["api-only"] === true;
-  const counters = buildCounters(cacheDir, targets).filter((counter) => {
+  const counters = buildCounters(cacheDir, usable).filter((counter) => {
     if (localOnly) return counter.kind === "local";
     if (apiOnly) return counter.kind === "api";
     return true;
