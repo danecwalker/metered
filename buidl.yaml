@@ -46,6 +46,7 @@ env:
     - ADMIN_PASSWORD
     - ADMIN_SECRET
     - DATABASE_URL
+    - NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
 infra:
   ssh:
     user: root

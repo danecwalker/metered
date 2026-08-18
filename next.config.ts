@@ -6,7 +6,13 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["192.168.1.116", "127.0.0.1", "localhost"],
   experimental: {
     serverActions: {
-      allowedOrigins: ["192.168.1.116:3000", "localhost:3000", "127.0.0.1:3000"],
+      allowedOrigins: [
+        "localhost:3000",
+        "127.0.0.1:3000",
+        "192.168.1.116:3000",
+        "metered.danecwalker.com",
+      ],
+      bodySizeLimit: "4mb",
     },
   },
   async redirects() {
