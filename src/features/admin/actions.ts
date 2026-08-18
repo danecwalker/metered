@@ -8,7 +8,14 @@ import { ensureReady } from "@/db/client";
 import { catalogAliases, endpoints, models, submissions, workRuns } from "@/db/schema";
 import { normalizeToken } from "@/features/catalog/aliases";
 import { clearCatalogCache } from "@/features/catalog/models-dev";
-import { detectFromRun, ensureCatalogIdentity, refreshCatalogPrices } from "@/features/catalog/sync";
+import { loadCatalog } from "@/features/catalog/models-dev";
+import { resolveCatalogModel } from "@/features/catalog/resolve";
+import {
+  detectFromRun,
+  ensureCatalogIdentity,
+  listCatalogAliases,
+  refreshCatalogPrices,
+} from "@/features/catalog/sync";
 import {
   ADMIN_COOKIE,
   authConfigured,
@@ -29,6 +36,14 @@ import {
 import { WORK_SUITE_VERSION } from "@/features/pricing/math";
 import { loadSliceMap } from "@/features/basket/load";
 import { canCount } from "@/features/measure/counters";
+import {
+  catalogQueryOf,
+  parseBasketCountsText,
+  planBasketImport,
+  summarizeImportPlan,
+  type CatalogHint,
+  type ImportModelRef,
+} from "@/features/measure/import-basket";
 import { measureModelOnBasket, upsertMeasurement } from "@/features/measure/run";
 
 export type ActionState = { ok: false; error: string } | { ok: true; message?: string };
@@ -44,6 +59,7 @@ function revalidatePublic(slug?: string) {
   if (slug) revalidatePath(`/models/${slug}`);
   revalidatePath("/admin");
   revalidatePath("/admin/aliases");
+  revalidatePath("/admin/basket");
 }
 
 export async function loginAction(
@@ -288,6 +304,106 @@ export async function measureBasketAction(
   });
   revalidatePublic(model.slug);
   return { ok: true, message: `Counted ${wrote} basket slices with ${model.tokenizerKey}.` };
+}
+
+async function modelsForImport(): Promise<ImportModelRef[]> {
+  const db = await ensureReady();
+  const [allModels, allEndpoints] = await Promise.all([
+    db.select().from(models),
+    db.select().from(endpoints),
+  ]);
+  return allModels.map((model) => ({
+    id: model.id,
+    slug: model.slug,
+    name: model.name,
+    catalogId: model.catalogId,
+    labId: model.labId,
+    tokenizerKey: model.tokenizerKey,
+    skus: allEndpoints
+      .filter((row) => row.modelId === model.id)
+      .flatMap((row) => [row.sku, row.catalogSku].filter((value): value is string => Boolean(value))),
+  }));
+}
+
+export async function importBasketCountsAction(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireAdmin();
+  const parsed = parseBasketCountsText(String(formData.get("payload") ?? ""));
+  if (!parsed.ok) return fail(parsed.error);
+
+  const db = await ensureReady();
+  const [catalog, aliases, existing] = await Promise.all([
+    loadCatalog(),
+    listCatalogAliases(db),
+    modelsForImport(),
+  ]);
+  const hints = new Map<string, CatalogHint>();
+  for (const tokenizer of parsed.tokenizers) {
+    const query = catalogQueryOf(tokenizer);
+    if (!query) continue;
+    const match = resolveCatalogModel(catalog, aliases, {
+      sku: query.catalogId,
+      lab: query.lab,
+    });
+    if (!match) continue;
+    hints.set(tokenizer.id, {
+      catalogId: match.modelId,
+      name: match.modelName,
+      slug: match.slug,
+      labId: match.labId,
+      sku: match.sku,
+    });
+  }
+  const plan = planBasketImport(parsed, existing, hints);
+  const apply = String(formData.get("mode") ?? "preview") === "apply";
+  if (!apply) {
+    return { ok: true, message: summarizeImportPlan(plan, false) };
+  }
+  if (plan.assignments.length === 0) {
+    return fail(summarizeImportPlan(plan, false));
+  }
+
+  const slices = await loadSliceMap();
+  const now = new Date().toISOString();
+  for (const row of plan.assignments) {
+    let modelId = row.model.id;
+    let slug = row.model.slug;
+    if (row.openFromCatalog || !modelId) {
+      const query = catalogQueryOf(row.tokenizer);
+      const match = query
+        ? await detectFromRun(db, { sku: query.catalogId, lab: query.lab })
+        : null;
+      if (!match) {
+        return fail(`models.dev has no row for ${row.tokenizer.label}.`);
+      }
+      const persisted = await ensureCatalogIdentity(db, match);
+      modelId = persisted.model.id;
+      slug = persisted.model.slug;
+    }
+    for (const slice of row.tokenizer.slices) {
+      const frozen = slices[slice.sliceId];
+      await upsertMeasurement(db, {
+        modelId,
+        sliceId: slice.sliceId,
+        nativeTokens: slice.nativeTokens,
+        characterCount: frozen.characters,
+        source: row.tokenizer.measurementSource,
+      });
+    }
+    if (row.tokenizer.tokenizerKey) {
+      await db
+        .update(models)
+        .set({
+          tokenizerKey: row.tokenizer.tokenizerKey,
+          updatedAt: now,
+        })
+        .where(eq(models.id, modelId));
+    }
+    revalidatePublic(slug);
+  }
+  return { ok: true, message: summarizeImportPlan(plan, true) };
 }
 
 export async function saveWorkRunAction(

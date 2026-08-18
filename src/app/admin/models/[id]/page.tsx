@@ -61,6 +61,10 @@ export default async function AdminModelPage({ params }: Props) {
       <EditModelForm model={model} labs={labs} />
 
       <h2 className="section__title">Basket counts</h2>
+      <p className="field__help">
+        <Link href="/admin/basket">Bulk import</Link> the JSON from{" "}
+        <code>npm run count:basket</code>, or count one slice below.
+      </p>
       <MeasureForm modelId={model.id} canLocalCount={canCount(model.tokenizerKey)} />
       <ManualCountForm modelId={model.id} slices={slices} />
 

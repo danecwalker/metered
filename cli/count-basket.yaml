@@ -1,0 +1,21 @@
+# Lab count APIs. Add a models.dev id (or a bare SKU) per line.
+# Local tiktoken / Hugging Face tables still run on their own.
+#
+#   npm run count:basket -- --cli-auth --out .cache/basket-counts.json
+#   npm run count:basket -- --list
+#   npm run count:basket -- --model anthropic/claude-mythos-5
+#
+# The site import matches these ids against models.dev and opens
+# the model if it is not on the board yet.
+
+models:
+  - anthropic/claude-sonnet-4-6
+  - anthropic/claude-sonnet-5
+  - anthropic/claude-opus-4-7
+  - anthropic/claude-opus-4-8
+  - anthropic/claude-opus-5
+  - anthropic/claude-fable-5
+  - xai/grok-4.6
+  - google/gemini-2.5-pro
+  - google/gemini-3.1-pro-preview
+  - moonshotai/kimi-k3
