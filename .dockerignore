@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+.buidl
+data/*.db
+data/*.db-*
+.env.local
+gauntlet-progress.html
+.hallmark

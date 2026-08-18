@@ -4,61 +4,83 @@ import { EVALUATOR_VERSION } from "@/features/eval/hash";
 import { lockfileOf } from "@/features/eval/package";
 import { evalBootstrap } from "@/features/eval/source";
 import { loadOfficialSuite } from "@/features/eval/suite";
+import { currentUser } from "@/features/account/auth";
 import { SubmitPackageForm } from "./eval-forms";
 
 export const metadata: Metadata = {
   title: "Eval",
   description:
-    "Run the official suite on your machine via a YAML-configured command, then submit the sealed package.",
+    "Upload a sealed package from a local run, or generate one with the two-step CLI.",
 };
 
 export default async function EvalPage() {
   const suite = await loadOfficialSuite();
   const lock = lockfileOf(suite);
   const boot = evalBootstrap();
+  const user = await currentUser();
 
   return (
-    <article className="wrap section">
-      <h1 className="section__title">Eval on your machine</h1>
-      <p className="section__lede">
-        Two commands. The first writes <code>metered-eval.yaml</code> from
-        the CLIs on your machine. The second runs the official suite — retry
-        until pass or <code>max_attempts</code> — and seals a package. Keys
-        never leave this machine. $ / M ET is only published for a complete
-        finish.
-      </p>
+    <article className="wrap section grid gap-12">
+      <header className="grid gap-3">
+        <h1 className="section__title">Eval</h1>
+        <p className="text-ink-2 max-w-[62ch] text-[length:var(--text-base)] leading-relaxed">
+          Upload a sealed <code>metered-eval/1</code> package from the official
+          suite repo. Anyone can read how. Only signed-in users can upload.
+          Nothing posts until an admin screens it.
+        </p>
+      </header>
 
-      <div className="code-card" style={{ marginBottom: "1rem" }}>
-        <div className="code-card__bar">
-          <span>1 · generate yaml</span>
-          <span className="status-chip">
-            {suite.suiteVersion} · {EVALUATOR_VERSION}
-          </span>
+      {user && user.status === "active" ? (
+        <SubmitPackageForm />
+      ) : (
+        <p className="banner" role="status">
+          <strong>Sign in to upload.</strong>{" "}
+          <Link href="/login?next=/eval">Sign in</Link>
+          {" / "}
+          <Link href="/signup?next=/eval">Create an account</Link>
+        </p>
+      )}
+
+      <section className="grid gap-6">
+        <header className="grid gap-3">
+          <h2 className="section__title">How to eval</h2>
+          <p className="text-ink-2 max-w-[62ch] text-[length:var(--text-base)] leading-relaxed">
+            Clone the suite. Edit only <code>main.py</code> so it calls your
+            harness: model, effort, dangerous mode, whatever that CLI needs.
+            Then run. Docker is required: the agent works in an isolated
+            checkout and the hidden verifier grades a git patch with no
+            network. Do not edit <code>tasks/</code>.
+          </p>
+        </header>
+        <div className="grid gap-5">
+          <div className="code-card">
+            <div className="code-card__bar">
+              <span>1. clone and edit main.py</span>
+              <span className="status-chip">
+                {suite.suiteVersion} / {EVALUATOR_VERSION}
+              </span>
+            </div>
+            <pre>{boot.initBlock}</pre>
+          </div>
+          <div className="code-card">
+            <div className="code-card__bar">
+              <span>2. run</span>
+              <span className="status-chip">sealed package</span>
+            </div>
+            <pre>{boot.runBlock}</pre>
+          </div>
         </div>
-        <pre>{boot.initBlock}</pre>
-      </div>
-
-      <div className="code-card" style={{ marginBottom: "2rem" }}>
-        <div className="code-card__bar">
-          <span>2 · run the suite</span>
-          <span className="status-chip">sealed package</span>
-        </div>
-        <pre>{boot.runBlock}</pre>
-      </div>
-
-      <p className="model-meta" style={{ marginBottom: "2rem" }}>
-        {suite.tasks.length} official tasks · hash {suite.suiteHash.slice(0, 16)}… ·{" "}
-        <Link href="/eval/suite">/eval/suite</Link>
-        <br />
-        Placeholders: <code>{"{prompt}"}</code>, <code>{"{prompt_file}"}</code>,{" "}
-        <code>{"{model}"}</code>, <code>{"{task_id}"}</code>,{" "}
-        <code>{"{effort}"}</code>. Pass <code>--effort high</code> (or none /
-        low / medium / xhigh / max). Same model, different effort, different
-        row.
-      </p>
-
-      <h2 className="section__title">Submit a sealed package</h2>
-      <SubmitPackageForm />
+        <p className="text-muted text-xs leading-relaxed">
+          {suite.tasks.length} official job{suite.tasks.length === 1 ? "" : "s"},
+          hash {suite.suiteHash.slice(0, 16)}… /{" "}
+          <Link href="/eval/suite">/eval/suite</Link>
+          <br />
+          Official suite {suite.suiteVersion}. Set HARNESS, MODEL, EFFORT, and
+          FLAGS in main.py. The suite adapter for that CLI counts tokens and
+          writes usage.json. Same SKU, different effort or harness, different
+          row. High reputation can file a SKU that is not on the catalog yet.
+        </p>
+      </section>
 
       <script
         type="application/json"

@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { OFFICIAL_TASK_COUNT } from "@/features/eval/suite";
 import {
   WORK_SUITE_VERSION,
-  dollarsPerMillionEt,
+  dollarsPerMu,
   workCostUsd,
 } from "@/features/pricing/math";
 import { rankIndexRows, summarizeWork } from "./rank";
@@ -12,9 +12,9 @@ const WORK_MU = 500_000;
 const HARNESS = { id: "hrs_api", name: "API" };
 
 describe("official suite size", () => {
-  it("is 5 tasks on work-2026.08-complete", () => {
-    assert.equal(WORK_SUITE_VERSION, "work-2026.08-complete");
-    assert.equal(OFFICIAL_TASK_COUNT, 5);
+  it("is 1 job on work-2026.08-py3", () => {
+    assert.equal(WORK_SUITE_VERSION, "work-2026.08-py3");
+    assert.equal(OFFICIAL_TASK_COUNT, 1);
   });
 });
 
@@ -53,7 +53,7 @@ function summary(args: {
   );
 }
 
-describe("summarizeWork $ / M ET", () => {
+describe("summarizeWork $ / MU", () => {
   it("is defined for a complete official finish with a bill", () => {
     const work = summary({ passed: OFFICIAL_TASK_COUNT, tasks: OFFICIAL_TASK_COUNT });
     const total = workCostUsd({
@@ -67,34 +67,49 @@ describe("summarizeWork $ / M ET", () => {
     });
     assert.equal(work.complete, true);
     assert.ok(total != null);
-    assert.equal(work.effectivePerMillion, dollarsPerMillionEt(total, WORK_MU));
-    assert.ok(work.effectivePerMillion != null);
+    assert.equal(work.dollarsPerMu, dollarsPerMu(total, WORK_MU));
+    assert.ok(work.dollarsPerMu != null);
     assert.ok(work.costPerPass != null);
   });
 
   it("is null when passed < tasks", () => {
-    const work = summary({ passed: 1, tasks: OFFICIAL_TASK_COUNT });
+    const work = summary({ passed: 0, tasks: OFFICIAL_TASK_COUNT });
     assert.equal(work.complete, false);
-    assert.equal(work.effectivePerMillion, null);
+    assert.equal(work.dollarsPerMu, null);
   });
 
-  it("is null when the run is not the official 5-task suite", () => {
-    const work = summary({ passed: 1, tasks: 1 });
+  it("is null when the run is not the official suite size", () => {
+    const work = summary({ passed: 2, tasks: 2 });
     assert.equal(work.complete, false);
-    assert.equal(work.effectivePerMillion, null);
+    assert.equal(work.dollarsPerMu, null);
+  });
+
+  it("is null when a complete run has no token counts", () => {
+    const work = summary({
+      passed: OFFICIAL_TASK_COUNT,
+      tasks: OFFICIAL_TASK_COUNT,
+      inputTokens: 0,
+      outputTokens: 0,
+      reasoningTokens: 0,
+      cacheHitTokens: 0,
+    });
+    assert.equal(work.complete, true);
+    assert.equal(work.dollarsPerMu, null);
+    assert.equal(work.costPerPass, null);
+    assert.equal(work.tokensPerPass, null);
   });
 
   it("has no useful cost when passed is 0", () => {
     const work = summary({ passed: 0, tasks: OFFICIAL_TASK_COUNT });
     assert.equal(work.complete, false);
-    assert.equal(work.effectivePerMillion, null);
+    assert.equal(work.dollarsPerMu, null);
     assert.equal(work.costPerPass, null);
     assert.equal(work.tokensPerPass, null);
   });
 });
 
 describe("rankIndexRows", () => {
-  it("sorts complete cheap $ / M ET first, incomplete passes next, no work last", () => {
+  it("sorts complete cheap $ / MU first, incomplete passes next, no work last", () => {
     const cheap = summary({
       passed: OFFICIAL_TASK_COUNT,
       listInput: 1,
@@ -105,12 +120,12 @@ describe("rankIndexRows", () => {
       listInput: 10,
       listOutput: 10,
     });
-    const partial = summary({ passed: 3, tasks: OFFICIAL_TASK_COUNT });
+    const partial = summary({ passed: 0, tasks: OFFICIAL_TASK_COUNT });
     const none = null;
-    assert.ok(cheap.effectivePerMillion != null);
-    assert.ok(expensive.effectivePerMillion != null);
-    assert.ok(cheap.effectivePerMillion < expensive.effectivePerMillion);
-    assert.equal(partial.effectivePerMillion, null);
+    assert.ok(cheap.dollarsPerMu != null);
+    assert.ok(expensive.dollarsPerMu != null);
+    assert.ok(cheap.dollarsPerMu < expensive.dollarsPerMu);
+    assert.equal(partial.dollarsPerMu, null);
 
     const ranked = rankIndexRows([
       { stack: "no-work", work: none },
@@ -124,9 +139,9 @@ describe("rankIndexRows", () => {
     );
   });
 
-  it("does not rank a cheap 1/5 ahead of an expensive 5/5", () => {
+  it("does not rank a failed cheap job ahead of an expensive finish", () => {
     const cheapPartial = summary({
-      passed: 1,
+      passed: 0,
       tasks: OFFICIAL_TASK_COUNT,
       listInput: 0.01,
       listOutput: 0.01,
@@ -137,14 +152,14 @@ describe("rankIndexRows", () => {
       listInput: 100,
       listOutput: 200,
     });
-    assert.equal(cheapPartial.effectivePerMillion, null);
-    assert.ok(expensiveComplete.effectivePerMillion != null);
+    assert.equal(cheapPartial.dollarsPerMu, null);
+    assert.ok(expensiveComplete.dollarsPerMu != null);
 
     const ranked = rankIndexRows([
-      { stack: "cheap-1-of-5", work: cheapPartial },
-      { stack: "expensive-5-of-5", work: expensiveComplete },
+      { stack: "cheap-fail", work: cheapPartial },
+      { stack: "expensive-finish", work: expensiveComplete },
     ]);
-    assert.equal(ranked[0]?.stack, "expensive-5-of-5");
-    assert.equal(ranked[1]?.stack, "cheap-1-of-5");
+    assert.equal(ranked[0]?.stack, "expensive-finish");
+    assert.equal(ranked[1]?.stack, "cheap-fail");
   });
 });

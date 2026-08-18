@@ -21,8 +21,11 @@ import { loadOfficialSuite } from "@/features/eval/suite";
 import {
   rankIndexRows,
   summarizeWork,
-  type WorkSummary,
 } from "@/features/catalog/rank";
+import {
+  hasDollarsPerMu,
+  type IndexRow,
+} from "@/features/catalog/types";
 import {
   fertility,
   runIsComplete,
@@ -33,7 +36,8 @@ import {
 } from "@/features/pricing/math";
 import type { MeasurementSource, SliceId } from "@/features/pricing/types";
 
-export type { WorkSummary };
+export type { IndexRow, WorkSummary } from "@/features/catalog/types";
+export { hasDollarsPerMu };
 
 export type SliceScore = {
   sliceId: SliceId;
@@ -46,34 +50,6 @@ export type SliceScore = {
   trueInput: number | null;
   trueOutput: number | null;
 };
-
-export type IndexRow = {
-  endpointId: string;
-  modelId: string;
-  slug: string;
-  name: string;
-  stack: string;
-  lab: string;
-  harnessId: string | null;
-  harnessName: string | null;
-  harnessSlug: string | null;
-  provider: string;
-  sku: string;
-  displayName: string;
-  tokenizerKey: ModelRow["tokenizerKey"];
-  listInput: number;
-  listOutput: number | null;
-  fertilityIn: number | null;
-  trueInput: number | null;
-  trueOutput: number | null;
-  measuredSlices: number;
-  estimateSlices: number;
-  work: WorkSummary | null;
-};
-
-export function hasEffectivePerMillion(rows: IndexRow[]): boolean {
-  return rows.some((row) => row.work?.effectivePerMillion != null);
-}
 
 export type ModelDetail = {
   model: ModelRow;
@@ -196,11 +172,9 @@ export const listPublishedIndex = cache(async function listPublishedIndex(): Pro
     const composite = compositeOf(scores);
     const measured = scores.filter((score) => score.fertility != null);
     const modelRuns = runsByModel.get(model.id) ?? [];
-    const stacks = modelRuns.length
-      ? modelRuns
-      : [{ run: null, harness: null }];
+    if (modelRuns.length === 0) continue;
 
-    for (const stack of stacks) {
+    for (const stack of modelRuns) {
       rows.push({
         endpointId: endpoint.id,
         modelId: model.id,

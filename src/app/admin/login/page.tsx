@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { authConfigured, authUnconfiguredMessage } from "@/features/admin/auth";
+import Link from "next/link";
+import { AuthShell } from "@/shared/ui/auth-shell";
+import { authConfigured } from "@/features/admin/auth";
 import { AdminLoginForm } from "./login-form";
 
 export const dynamic = "force-dynamic";
@@ -12,25 +14,22 @@ export default function AdminLoginPage() {
   const configured = authConfigured();
 
   return (
-    <section className="wrap section" style={{ maxWidth: 420 }}>
-      <h1 className="section__title">Admin</h1>
+    <AuthShell
+      title="Admin"
+      lede="Use your Metered account if it is listed as admin. The password form is only a fallback."
+      footer={
+        <>
+          Prefer your account? <Link href="/login?next=/admin">Sign in</Link>
+        </>
+      }
+    >
       {configured ? (
-        <>
-          <p className="section__lede">
-            Sign in to add models, stickers, and basket counts.
-          </p>
-          <AdminLoginForm />
-        </>
+        <AdminLoginForm />
       ) : (
-        <>
-          <p className="section__lede">
-            Sign in is disabled until admin secrets are configured.
-          </p>
-          <p className="alert" role="alert">
-            {authUnconfiguredMessage() ?? "Admin is not configured."}
-          </p>
-        </>
+        <p className="alert" role="alert">
+          Password login is off. Sign in with a user named in ADMIN_USERNAMES.
+        </p>
       )}
-    </section>
+    </AuthShell>
   );
 }

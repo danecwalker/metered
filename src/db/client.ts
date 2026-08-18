@@ -1,9 +1,9 @@
 import "server-only";
 
-import { createClient, type Client } from "@libsql/client";
-import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
-import path from "node:path";
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import * as schema from "@/db/schema";
+import { harnesses } from "@/db/schema";
 import { seedIfEmpty } from "@/db/seed";
 import { HARNESSES } from "@/features/harness/catalog";
 
@@ -32,10 +32,10 @@ CREATE TABLE IF NOT EXISTS endpoints (
   provider TEXT NOT NULL,
   sku TEXT NOT NULL,
   display_name TEXT NOT NULL,
-  list_input REAL NOT NULL,
-  list_output REAL,
-  list_cache_hit REAL,
-  list_cache_write REAL,
+  list_input DOUBLE PRECISION NOT NULL,
+  list_output DOUBLE PRECISION,
+  list_cache_hit DOUBLE PRECISION,
+  list_cache_write DOUBLE PRECISION,
   context_note TEXT,
   status TEXT NOT NULL,
   sort_order INTEGER NOT NULL DEFAULT 0
@@ -54,7 +54,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS measurements_model_slice
 CREATE TABLE IF NOT EXISTS work_runs (
   id TEXT PRIMARY KEY,
   model_id TEXT NOT NULL REFERENCES models(id) ON DELETE CASCADE,
-  harness_id TEXT NOT NULL DEFAULT 'hrs_api' REFERENCES harnesses(id),
+  harness_id TEXT NOT NULL REFERENCES harnesses(id),
   suite_version TEXT NOT NULL,
   setting TEXT NOT NULL DEFAULT 'default',
   tasks INTEGER NOT NULL,
@@ -67,6 +67,8 @@ CREATE TABLE IF NOT EXISTS work_runs (
   notes TEXT,
   measured_at TEXT NOT NULL
 );
+CREATE UNIQUE INDEX IF NOT EXISTS work_runs_model_harness_suite_setting
+  ON work_runs (model_id, harness_id, suite_version, setting);
 CREATE TABLE IF NOT EXISTS submissions (
   id TEXT PRIMARY KEY,
   status TEXT NOT NULL,
@@ -89,78 +91,79 @@ CREATE TABLE IF NOT EXISTS submissions (
   package_json TEXT NOT NULL,
   note TEXT,
   review_note TEXT,
+  user_id TEXT,
+  screen_json TEXT,
+  new_model INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  reputation INTEGER NOT NULL DEFAULT 10,
+  status TEXT NOT NULL DEFAULT 'active',
+  reject_count INTEGER NOT NULL DEFAULT 0,
+  role TEXT NOT NULL DEFAULT 'user',
+  created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS user_sessions (
+  token TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at TEXT NOT NULL
 );
 `;
 
-type Db = LibSQLDatabase<typeof schema>;
+type Db = NodePgDatabase<typeof schema>;
 
 declare global {
-  var __meteredClient: Client | undefined;
+  var __meteredPool: Pool | undefined;
   var __meteredDb: Db | undefined;
   var __meteredBoot: Promise<Db> | undefined;
 }
 
 function databaseUrl(): string {
-  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-  const file = path.join(process.cwd(), "data", "metered.db");
-  return `file:${file}`;
+  const url = process.env.DATABASE_URL?.trim();
+  if (!url) {
+    throw new Error("DATABASE_URL is required");
+  }
+  return url;
 }
 
-export function getClient(): Client {
-  if (!globalThis.__meteredClient) {
-    globalThis.__meteredClient = createClient({ url: databaseUrl() });
+export function getPool(): Pool {
+  if (!globalThis.__meteredPool) {
+    globalThis.__meteredPool = new Pool({ connectionString: databaseUrl() });
   }
-  return globalThis.__meteredClient;
+  return globalThis.__meteredPool;
 }
 
 export function getDb(): Db {
   if (!globalThis.__meteredDb) {
-    globalThis.__meteredDb = drizzle(getClient(), { schema });
+    globalThis.__meteredDb = drizzle(getPool(), { schema });
   }
   return globalThis.__meteredDb;
 }
 
 async function seedHarnesses() {
-  const client = getClient();
+  const db = getDb();
   for (const harness of HARNESSES) {
-    await client.execute({
-      sql: `INSERT OR IGNORE INTO harnesses (id, slug, name, kind, blurb) VALUES (?, ?, ?, ?, ?)`,
-      args: [harness.id, harness.slug, harness.name, harness.kind, harness.blurb],
-    });
+    await db
+      .insert(harnesses)
+      .values(harness)
+      .onConflictDoUpdate({
+        target: harnesses.id,
+        set: {
+          slug: harness.slug,
+          name: harness.name,
+          kind: harness.kind,
+          blurb: harness.blurb,
+        },
+      });
   }
-}
-
-async function columnNames(table: string): Promise<Set<string>> {
-  const cols = await getClient().execute(`PRAGMA table_info(${table})`);
-  return new Set(cols.rows.map((row) => String(row.name)));
-}
-
-async function migrateWorkRuns() {
-  const client = getClient();
-  const names = await columnNames("work_runs");
-  if (names.size === 0) return;
-  if (!names.has("harness_id")) {
-    try {
-      await client.execute(
-        `ALTER TABLE work_runs ADD COLUMN harness_id TEXT NOT NULL DEFAULT 'hrs_api'`,
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (!message.includes("duplicate column name")) throw error;
-    }
-  }
-  await client.execute(`DROP INDEX IF EXISTS work_runs_model_suite_setting`);
-  await client.execute(
-    `CREATE UNIQUE INDEX IF NOT EXISTS work_runs_model_harness_suite_setting
-     ON work_runs (model_id, harness_id, suite_version, setting)`,
-  );
 }
 
 async function boot(): Promise<Db> {
-  await getClient().executeMultiple(DDL);
+  await getPool().query(DDL);
   await seedHarnesses();
-  await migrateWorkRuns();
   await seedIfEmpty();
   return getDb();
 }
@@ -173,4 +176,13 @@ export function ensureReady(): Promise<Db> {
     });
   }
   return globalThis.__meteredBoot;
+}
+
+export async function pingDatabase(): Promise<boolean> {
+  try {
+    await getPool().query("SELECT 1");
+    return true;
+  } catch {
+    return false;
+  }
 }

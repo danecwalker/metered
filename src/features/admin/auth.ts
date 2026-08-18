@@ -3,7 +3,9 @@ import "server-only";
 import { timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { currentUser } from "@/features/account/auth";
 import { ADMIN_COOKIE, expectedSessionToken } from "@/features/admin/auth-edge";
+import { userIsAdmin } from "@/features/admin/principals";
 import {
   adminUnconfiguredMessage,
   inspectAdminSecrets,
@@ -46,9 +48,10 @@ export async function isAdmin(): Promise<boolean> {
 }
 
 export async function requireAdmin(): Promise<void> {
-  if (!(await isAdmin())) {
-    redirect("/admin/login");
-  }
+  if (await isAdmin()) return;
+  const user = await currentUser();
+  if (user && user.status === "active" && userIsAdmin(user)) return;
+  redirect("/login?next=/admin");
 }
 
 export function authConfigured(): boolean {

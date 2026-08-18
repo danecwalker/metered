@@ -135,6 +135,35 @@ export function AddEndpointForm({ modelId }: { modelId: string }) {
           <p className="field__help">Leave blank if unpublished.</p>
         </div>
       </div>
+      <div className="form-grid">
+        <div className="field">
+          <label className="field__label" htmlFor="listCacheHit">
+            List cache hit ($/M native)
+          </label>
+          <input
+            className="input"
+            id="listCacheHit"
+            name="listCacheHit"
+            type="number"
+            step="0.0001"
+            min="0"
+          />
+          <p className="field__help">Leave blank to bill cache at the input rate.</p>
+        </div>
+        <div className="field">
+          <label className="field__label" htmlFor="listCacheWrite">
+            List cache write ($/M native)
+          </label>
+          <input
+            className="input"
+            id="listCacheWrite"
+            name="listCacheWrite"
+            type="number"
+            step="0.0001"
+            min="0"
+          />
+        </div>
+      </div>
       <div className="field">
         <label className="field__label" htmlFor="ep-status">
           Status
@@ -220,6 +249,37 @@ export function EndpointEditor({ endpoint }: { endpoint: EndpointRow }) {
             type="number"
             step="0.0001"
             defaultValue={endpoint.listOutput ?? ""}
+          />
+        </div>
+      </div>
+      <div className="form-grid">
+        <div className="field">
+          <label className="field__label" htmlFor={`cache-hit-${endpoint.id}`}>
+            List cache hit
+          </label>
+          <input
+            className="input"
+            id={`cache-hit-${endpoint.id}`}
+            name="listCacheHit"
+            type="number"
+            step="0.0001"
+            min="0"
+            defaultValue={endpoint.listCacheHit ?? ""}
+          />
+          <p className="field__help">Leave blank to bill cache at the input rate.</p>
+        </div>
+        <div className="field">
+          <label className="field__label" htmlFor={`cache-write-${endpoint.id}`}>
+            List cache write
+          </label>
+          <input
+            className="input"
+            id={`cache-write-${endpoint.id}`}
+            name="listCacheWrite"
+            type="number"
+            step="0.0001"
+            min="0"
+            defaultValue={endpoint.listCacheWrite ?? ""}
           />
         </div>
       </div>
@@ -311,7 +371,7 @@ export function ManualCountForm({
         {slices
           .filter((slice) => slice.fertility != null)
           .map((slice) => `${slice.label} ${fert(slice.fertility)}`)
-          .join(" · ") || "none yet"}
+          .join(", ") || "none yet"}
       </p>
     </form>
   );
@@ -333,9 +393,9 @@ export function WorkRunForm({
       <input type="hidden" name="modelId" value={modelId} />
       <p className="field__help">
         One run per harness. GPT (ChatGPT), GPT (OpenCode), and GPT (API) are
-        different rows. $ / M ET and a Stacks rank require every official task
+        different rows. $ / MU and a Stacks rank require every official task
         to pass. $ / pass still records a partial run; it does not sort the
-        board. All tokens still count — retries and failed attempts stay in
+        board. All tokens still count. Retries and failed attempts stay in
         the bill. Manual numbers get a “manual” label. Thinking is billed as
         output.
       </p>
@@ -344,9 +404,9 @@ export function WorkRunForm({
           Logged:{" "}
           {runs
             .map((run) =>
-              `${run.harness.name} · ${run.setting} · ${run.passed ?? "—"}/${run.tasks} passed`,
+              `${run.harness.name} / ${run.setting} / ${run.passed ?? "-"}/${run.tasks} passed`,
             )
-            .join(" · ")}
+            .join(", ")}
         </p>
       ) : null}
       <div className="form-grid">

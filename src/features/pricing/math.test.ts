@@ -11,7 +11,7 @@ import {
   weightedMean,
   workCostUsd,
   workPricePerPass,
-  dollarsPerMillionEt,
+  dollarsPerMu,
   runIsComplete,
 } from "./math";
 
@@ -90,10 +90,10 @@ describe("work price", () => {
     assert.equal(runIsComplete(0, 5, 5), false);
   });
 
-  it("expresses the suite bill as $ / M ET on official work MU", () => {
-    assert.equal(dollarsPerMillionEt(2, 500_000), 4);
-    assert.equal(dollarsPerMillionEt(0.5, 10), 50_000);
-    assert.equal(dollarsPerMillionEt(1, 0), null);
+  it("expresses the suite bill as $ / MU on official work MU", () => {
+    assert.equal(dollarsPerMu(2, 500_000), 0.000004);
+    assert.equal(dollarsPerMu(0.5, 10), 0.05);
+    assert.equal(dollarsPerMu(1, 0), null);
   });
 });
 

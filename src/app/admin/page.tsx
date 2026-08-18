@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { logoutAction } from "@/features/admin/actions";
+import { AdminNav } from "@/app/admin/admin-nav";
 import { requireAdmin } from "@/features/admin/auth";
 import { listModelsAdmin } from "@/features/catalog/queries";
 
@@ -11,28 +11,17 @@ export default async function AdminHomePage() {
 
   return (
     <section className="wrap section">
+      <AdminNav current="/admin" />
       <div className="admin-bar">
-        <div>
-          <h1 className="section__title">Models to price</h1>
-          <p className="section__lede">
-            Add a model, then add at least one endpoint and a basket count.
-            Publish both to land it on Stacks.
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: "0.6rem" }}>
-          <Link className="btn btn--primary" href="/admin/models/new">
-            Add model
-          </Link>
-          <Link className="btn" href="/admin/submissions">
-            Packages
-          </Link>
-          <form action={logoutAction}>
-            <button className="btn btn--ghost" type="submit">
-              Sign out
-            </button>
-          </form>
-        </div>
+        <h1 className="section__title">Models to price</h1>
+        <Link className="btn btn--primary" href="/admin/models/new">
+          Add model
+        </Link>
       </div>
+      <p className="section__lede">
+        Add a model, then add at least one endpoint and a basket count. Publish
+        both to land it on Stacks.
+      </p>
 
       {models.length === 0 ? (
         <p>
@@ -58,7 +47,7 @@ export default async function AdminHomePage() {
                       {model.name}
                     </Link>
                     <span className="model-meta">
-                      {model.lab} · {model.slug}
+                      {model.lab} / {model.slug}
                     </span>
                   </td>
                   <td>

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { SLICES } from "@/features/basket/slices";
+import lock from "@/features/eval/official-lock.json";
 import {
   BASKET_VERSION,
   CHARS_PER_MU,
@@ -10,13 +10,13 @@ import {
 export const metadata: Metadata = {
   title: "Method",
   description:
-    "How Metered ranks finished work on $ / million effective tokens, and why a partial pass is not cheap.",
+    "How Metered ranks finished work on $ / MU, what an MU is, and why a partial pass is not cheap.",
 };
 
 export default function MethodologyPage() {
   return (
     <article className="wrap section prose">
-      <h1>How we compare models</h1>
+      <h1 className="section__title">How we compare models</h1>
       <p>
         The useful question is not “who printed the lowest $/1M tokens.” It is
         who is cheapest to <em>finish the same work</em>, and who wastes tokens
@@ -25,35 +25,59 @@ export default function MethodologyPage() {
         tokens.
       </p>
 
-      <h2>The ranking: $ / million effective tokens</h2>
+      <h2>What an MU is</h2>
       <p>
-        The headline number is the familiar unit — dollars per million tokens —
-        after the work is done. It is only defined when a stack finishes{" "}
-        <em>every</em> official task on <code>{WORK_SUITE_VERSION}</code>.
-        A 1/5 run is not cheaper than a 5/5 finish.
+        1 MU is {CHARS_PER_MU} Unicode characters after NFC and LF. It is{" "}
+        <em>not</em> a native token. Two models can read the same characters
+        and spend different token counts. The rank ignores the tokenizer and
+        uses one fixed volume of official work.
+      </p>
+      <p>
+        Official suite <code>{WORK_SUITE_VERSION}</code> is one Harbor-style
+        coding job (a durable work queue). The agent never sees the hidden
+        verifier. After it exits we grade a git patch in a no-network Docker
+        container, the same split DeepSWE uses. The suite is{" "}
+        <strong>{lock.workMu} MU</strong>: {lock.workChars} characters of
+        frozen prompts and reference answers, divided by {CHARS_PER_MU}. That
+        lock does not grow when a model is verbose. Fertility, thinking,
+        retries, and failed attempts only change the bill.
+      </p>
+
+      <h2>The ranking: $ / MU</h2>
+      <p>
+        The headline is <code>$ billed / Work MU</code>. It is only defined
+        when a stack finishes <em>every</em> official task on{" "}
+        <code>{WORK_SUITE_VERSION}</code>. A failed job is not cheaper than a
+        finish. The denominator is {lock.workMu}, not a million tokens
+        and not a million MU.
       </p>
       <pre>
-        {`Work MU     = characters of the official jobs / ${CHARS_PER_MU}
-              (frozen prompts + reference answers)
+        {`1 MU        = ${CHARS_PER_MU} Unicode characters (NFC, LF)
+Work MU     = ${lock.workChars} / ${CHARS_PER_MU} = ${lock.workMu}   (${WORK_SUITE_VERSION})
 $ billed    = uncached_in × P_in
             + cache_hit   × P_cache
             + (out + think) × P_out
-$ / M ET    = $ billed / Work MU × 1e6
+$ / MU      = $ billed / ${lock.workMu}
 $ / pass    = $ billed / tasks that passed
 Tokens/pass = (in + out + think) / passed`}
       </pre>
       <p>
-        Effective tokens are <em>not</em> native tokens. They are Metered
-        Units of the official jobs — a tokenizer-independent volume of
-        finished work. Fertility, thinking, retries, and failed attempts
-        all raise the bill, so they raise $ / M ET. That is the sticker
-        after the work.
+        A $1 complete finish is $1 / {lock.workMu}, about $0.002 / MU. Do
+        not scale the suite to a million units. That is the sticker after
+        the work, not a list $/1M token price.
+      </p>
+      <p>
+        Token counts come from the suite adapter for that harness: Claude's
+        JSON result, Codex <code>turn.completed</code>, Gemini session stats,
+        OpenCode <code>step_finish</code>, and so on. The runner writes{" "}
+        <code>usage.json</code> itself. A complete finish with no counted
+        tokens is not $0 / MU; it simply has no bill, so it does not rank.
       </p>
       <p>
         $ / pass and tokens / pass stay on the row so you can see the job.
         Burn vs leanest is tokens/pass versus the stingiest{" "}
         <em>complete</em> stack. Thinking is billed at the output rate.
-        Effort — none, low, medium, high, xhigh, max — is a separate row,
+        Effort (none, low, medium, high, xhigh, max) is a separate row,
         never averaged. GPT-high is not GPT-default.
       </p>
 
@@ -63,12 +87,12 @@ Tokens/pass = (in + out + think) / passed`}
         finished the short chat task would beat one that finished the whole
         set. SWE-bench and Artificial Analysis keep coverage and cost as
         two axes for that reason. We keep pass rate visible, and we only
-        hand a $ / M ET — and a sort key — to a complete finish.
+        hand a $ / MU, and a sort key, to a complete finish.
       </p>
       <p>
-        The local runner retries each task until it passes or hits the
-        attempt budget in <code>metered-eval.yaml</code>. Every attempt
-        stays in the bill. That is the cost of correcting itself.
+        The local runner retries each task until it passes or hits{" "}
+        <code>MAX_ATTEMPTS</code>. Every attempt stays in the bill. That is
+        the cost of correcting itself.
       </p>
 
       <h2>Token efficiency</h2>
@@ -89,7 +113,7 @@ Tokens/pass = (in + out + think) / passed`}
         Fertility is a diagnostic, not the sort. Ahia et al. (EMNLP 2023)
         showed that the same text is a different API bill under different
         tokenizers. TensorZero (2026) measured 2.65× more native tokens on
-        tool schemas for Claude Opus 4.7 than GPT-5.4 — a 2× sticker that
+        tool schemas for Claude Opus 4.7 than GPT-5.4. A 2× sticker that
         became a 5.3× input bill. We ask the same question: if both models
         read the <em>same characters</em>, how many native tokens is that?
       </p>
@@ -104,7 +128,7 @@ TruePrice = ListPrice × Fertility`}
       <ul>
         {SLICES.map((slice) => (
           <li key={slice.id}>
-            <strong>{slice.label}</strong> ({Math.round(slice.weight * 100)}%) —{" "}
+            <strong>{slice.label}</strong> ({Math.round(slice.weight * 100)}%):{" "}
             {slice.why}
           </li>
         ))}
@@ -119,40 +143,39 @@ TruePrice = ListPrice × Fertility`}
       <p>
         A row is <strong>model × harness × endpoint</strong>. The model is the
         weights. The harness is how you drive them. The endpoint is who you
-        pay. GPT (ChatGPT), GPT (Pi), and GPT (OpenCode) are three evals.
+        pay. GPT (ChatGPT), GPT (OpenCode), and GPT (API) are three evals.
         OpenRouter vs first-party on the same harness is two bills for one
         token burn.
       </p>
 
       <h2>How an eval is run</h2>
       <ol>
-        <li>Freeze the suite (<code>{WORK_SUITE_VERSION}</code> / scenario files).</li>
         <li>
-          Pick the stack: model + harness + provider. Claude the weights are
-          not Claude Code. Qwen the API is not the Qwen app. How the harness
-          is invoked lives in <code>metered-eval.yaml</code>, not in our
-          source.
+          Freeze the suite in its own repo (
+          <code>{WORK_SUITE_VERSION}</code>). Instruction + expected answers
+          are hashed. <code>main.py</code> is not.
         </li>
         <li>
-          Run each task the way that harness runs it. If the check fails,
-          retry with the previous answer attached, up to{" "}
-          <code>max_attempts</code>.
+          Clone that repo. Edit only <code>main.py</code> so it calls your
+          harness (Claude, Codex, Gemini, Grok, Qwen, Kimi, DeepSeek,
+          OpenCode, Pi) plus model, effort, and extra flags.
         </li>
         <li>
-          Record whatever that harness bills across every attempt: input,
-          output, thinking, cache, extra tool turns. If the product does not
-          expose tokens, the row cannot be official.
+          The runner seeds a Docker agent workspace (the official repo only).
+          Hidden tests stay out. After the harness exits we collect a git
+          patch and grade it in a fresh container with no network, the same
+          split DeepSWE uses. Failed patches retry up to{" "}
+          <code>MAX_ATTEMPTS</code>.
         </li>
         <li>
-          Score pass/fail with the suite’s check — required phrases, or JSON
-          keys and values against the gold extract. <code>nonempty</code> is
-          not enough.
+          The harness adapter runs that CLI, parses its usage JSON, and
+          writes <code>usage.json</code>. Input, output, thinking, and cache
+          across every attempt stay in the bill. No tokens means no $ / MU.
         </li>
         <li>
-          On your machine, put the command in <code>metered-eval.yaml</code>{" "}
-          and run <code>npx tsx cli/metered-eval.ts run --harness …</code>.
-          Upload the sealed package at <a href="/eval">/eval</a>. Edited
-          totals or swapped prompts fail verification.
+          The sealed package hashes the jobs, the answers, and the totals.
+          Upload it at <a href="/eval">/eval</a>. Edited totals, swapped
+          prompts, or a flipped pass flag fail verification.
         </li>
       </ol>
       <p>
@@ -167,11 +190,11 @@ TruePrice = ListPrice × Fertility`}
       <ul>
         <li>A 7:2:1 cache blend we did not measure on your traffic.</li>
         <li>Intelligence scores. Pass/fail is a checkable rubric, not an IQ.</li>
-        <li>Images, audio, video — different meters.</li>
+        <li>Images, audio, video: different meters.</li>
       </ul>
       <p>
-        <Link href="/compare">Paste text</Link> still prices a string through
-        each tokenizer. That is encoding, not a job.
+        Encoding fertility still prices a string through each tokenizer. That
+        is encoding, not a job.
       </p>
     </article>
   );

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { ArrowRight, BookOpen, Play } from "lucide-react";
 import Link from "next/link";
 import {
-  hasEffectivePerMillion,
+  hasDollarsPerMu,
   listPublishedIndex,
 } from "@/features/catalog/queries";
 import { OFFICIAL_TASK_COUNT } from "@/features/eval/suite";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const rows = await listPublishedIndex();
-  if (!hasEffectivePerMillion(rows)) {
+  if (!hasDollarsPerMu(rows)) {
     return {
       title: "Metered preview",
       description:
@@ -20,50 +21,50 @@ export async function generateMetadata(): Promise<Metadata> {
     };
   }
   return {
-    title: "$ / M ET to finish the work",
+    title: "$ / MU to finish the work",
     description:
-      "Stacks that finished every official task, ranked by dollars per million effective tokens. Incomplete runs stay labeled and do not get a $ / M ET.",
+      "Stacks that finished every official task, ranked by dollars per Metered Unit. Incomplete runs stay labeled and do not get a $ / MU.",
   };
 }
 
 export default async function HomePage() {
   const rows = await listPublishedIndex();
-  const hasEt = hasEffectivePerMillion(rows);
+  const hasEt = hasDollarsPerMu(rows);
+  const preview = rows.slice(0, 5);
 
   return (
     <>
-      <section className="wrap hero" data-hero>
+      <section className="wrap hero">
         {!hasEt ? (
-          <aside className="banner" role="status" data-hero-item>
-            <strong>Preview.</strong> No complete official suite is on the
-            board yet. Coverage is Passed / official {OFFICIAL_TASK_COUNT}.{" "}
-            <Link href="/eval">Run an eval</Link>
-            {" · "}
+          <aside className="banner" role="status">
+            <strong>Preview.</strong> No stack has finished the official job
+            with a bill yet. <Link href="/eval">Run an eval</Link>
+            {" / "}
             <Link href="/methodology">Method</Link>
           </aside>
         ) : null}
         <div>
           {hasEt ? (
-            <p className="hero__stat tnum" data-hero-item>
+            <p className="hero__stat tnum">
               ${" "}
-              <span className="hero__unit">/ M ET</span>
+              <span className="hero__unit">/ MU</span>
             </p>
           ) : (
-            <p className="model-meta tnum" data-hero-item>
+            <p className="model-meta tnum">
               Passed / official {OFFICIAL_TASK_COUNT}
             </p>
           )}
-          <h1 className="hero__headline" data-hero-item>
+          <h1 className="hero__headline">
             {hasEt
               ? "Same jobs. What do you actually pay."
               : "Same jobs. No complete finish yet."}
           </h1>
-          <p className="hero__lede" data-hero-item>
+          <p className="hero__lede">
             {hasEt ? (
               <>
                 A cheap sticker can still be expensive. So can the harness. GPT
                 in ChatGPT is not GPT in OpenCode. The index ranks stacks that
-                finished every official task, on $ / million effective tokens.
+                finished every official task, on $ / MU.
                 Incomplete runs are not cheap.
               </>
             ) : (
@@ -74,29 +75,41 @@ export default async function HomePage() {
               </>
             )}
           </p>
-          <div className="hero__actions" data-hero-item>
-            <a className="btn btn--primary" href={hasEt ? "#index" : "#stacks"}>
-              {hasEt ? "Open the index" : "See published stacks"}
-            </a>
+          <div className="hero__actions">
+            <Link
+              className="bg-accent text-accent-ink hover:text-accent-ink inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-transparent px-4 text-sm font-medium no-underline"
+              href="/stacks"
+            >
+              All stacks
+              <ArrowRight className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
+            </Link>
             {!hasEt ? (
-              <Link className="btn" href="/eval">
+              <Link
+                className="bg-paper-2 text-ink border-rule-2 hover:bg-paper-3 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border px-4 text-sm font-medium no-underline"
+                href="/eval"
+              >
+                <Play className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
                 Run an eval
               </Link>
             ) : null}
-            <Link className="btn" href="/methodology">
+            <Link
+              className="bg-paper-2 text-ink border-rule-2 hover:bg-paper-3 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border px-4 text-sm font-medium no-underline"
+              href="/methodology"
+            >
+              <BookOpen className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
               How we count
             </Link>
           </div>
         </div>
         {hasEt ? (
-          <aside className="code-card" aria-label="Work Price formula" data-hero-item>
+          <aside className="code-card" aria-label="Work Price formula">
             <div className="code-card__bar">
               <span>work-price.ts</span>
               <span className="status-chip">{WORK_SUITE_VERSION}</span>
             </div>
             <pre>
-              <span className="tok-key">$ / M ET</span>
-              {"  = $ billed / work MU × 1e6\n"}
+              <span className="tok-key">$ / MU</span>
+              {"    = $ billed / work MU\n"}
               <span className="tok-key">Work MU</span>
               {"    = official job chars / 4\n"}
               <span className="tok-key">Rank</span>
@@ -105,7 +118,7 @@ export default async function HomePage() {
             </pre>
           </aside>
         ) : (
-          <aside className="code-card" aria-label="How to evaluate" data-hero-item>
+          <aside className="code-card" aria-label="How to evaluate">
             <div className="code-card__bar">
               <span>how-to-eval.md</span>
               <span className="status-chip">preview</span>
@@ -121,51 +134,29 @@ export default async function HomePage() {
         )}
       </section>
 
-      <section className="wrap section" id={hasEt ? "index" : "stacks"}>
+      <section className="wrap section">
         <h2 className="section__title">
-          {hasEt ? "Cheapest to finish the work" : "Published stacks"}
+          {hasEt ? "Cheapest to finish" : "A few published stacks"}
         </h2>
         <p className="section__lede">
-          {hasEt ? (
-            <>
-              Sorted by $ / M ET on {WORK_SUITE_VERSION} when every official
-              task passed. $ / pass and tokens / pass keep the job-level
-              breakdown, including retries. Burn vs leanest is only among
-              complete finishes. Encoding is why two stickers are not
-              comparable.
-            </>
-          ) : (
-            <>
-              Published stacks on {WORK_SUITE_VERSION}. Incomplete runs stay
-              labeled. Run an eval to add coverage.
-            </>
-          )}
+          Cheapest complete finish first. The full list, filters, and every
+          column live on <Link href="/stacks">Stacks</Link>.
         </p>
-        <IndexTable rows={rows} />
+        <IndexTable rows={preview} variant="preview" />
+        {rows.length > 0 ? (
+          <p className="mt-6">
+            <Link
+              className="bg-paper-2 text-ink border-rule-2 hover:bg-paper-3 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border px-4 text-sm font-medium no-underline"
+              href="/stacks"
+            >
+              {rows.length > preview.length
+                ? `All ${rows.length} stacks`
+                : "Open the full table"}
+              <ArrowRight className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
+            </Link>
+          </p>
+        ) : null}
       </section>
-
-      {hasEt ? (
-        <section className="band">
-          <div className="wrap band__grid">
-            <div>
-              <h2 className="section__title">One sticker, after the work</h2>
-              <p>
-                $ / M ET is the familiar unit after fertility, thinking, and
-                retries. $ / pass is the bill for a finished job. Tokens / pass
-                is whether the model is a burner. A 1/5 run cannot beat a 5/5
-                finish. See{" "}
-                <Link href="/methodology">Method</Link>.
-              </p>
-            </div>
-            <ol>
-              <li>Run the same suite. Retry until pass or the attempt budget.</li>
-              <li>Every token stays in the bill, including failed attempts.</li>
-              <li>$ / M ET is defined only when every official task passed.</li>
-              <li>Encoding fertility explains the tokenizer, not the job.</li>
-            </ol>
-          </div>
-        </section>
-      ) : null}
     </>
   );
 }

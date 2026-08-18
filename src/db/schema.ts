@@ -1,11 +1,11 @@
-import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { doublePrecision, integer, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import type {
   MeasurementSource,
   ModelStatus,
   TokenizerKey,
 } from "@/features/pricing/types";
 
-export const harnesses = sqliteTable("harnesses", {
+export const harnesses = pgTable("harnesses", {
   id: text("id").primaryKey(),
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
@@ -13,7 +13,7 @@ export const harnesses = sqliteTable("harnesses", {
   blurb: text("blurb"),
 });
 
-export const models = sqliteTable("models", {
+export const models = pgTable("models", {
   id: text("id").primaryKey(),
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
@@ -25,7 +25,7 @@ export const models = sqliteTable("models", {
   updatedAt: text("updated_at").notNull(),
 });
 
-export const endpoints = sqliteTable("endpoints", {
+export const endpoints = pgTable("endpoints", {
   id: text("id").primaryKey(),
   modelId: text("model_id")
     .notNull()
@@ -33,16 +33,16 @@ export const endpoints = sqliteTable("endpoints", {
   provider: text("provider").notNull(),
   sku: text("sku").notNull(),
   displayName: text("display_name").notNull(),
-  listInput: real("list_input").notNull(),
-  listOutput: real("list_output"),
-  listCacheHit: real("list_cache_hit"),
-  listCacheWrite: real("list_cache_write"),
+  listInput: doublePrecision("list_input").notNull(),
+  listOutput: doublePrecision("list_output"),
+  listCacheHit: doublePrecision("list_cache_hit"),
+  listCacheWrite: doublePrecision("list_cache_write"),
   contextNote: text("context_note"),
   status: text("status").notNull().$type<ModelStatus>(),
   sortOrder: integer("sort_order").notNull().default(0),
 });
 
-export const measurements = sqliteTable(
+export const measurements = pgTable(
   "measurements",
   {
     id: text("id").primaryKey(),
@@ -58,7 +58,7 @@ export const measurements = sqliteTable(
   (table) => [uniqueIndex("measurements_model_slice").on(table.modelId, table.sliceId)],
 );
 
-export const workRuns = sqliteTable(
+export const workRuns = pgTable(
   "work_runs",
   {
     id: text("id").primaryKey(),
@@ -90,7 +90,26 @@ export const workRuns = sqliteTable(
   ],
 );
 
-export const submissions = sqliteTable("submissions", {
+export const users = pgTable("users", {
+  id: text("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  reputation: integer("reputation").notNull().default(10),
+  status: text("status").notNull().$type<"active" | "banned">().default("active"),
+  rejectCount: integer("reject_count").notNull().default(0),
+  role: text("role").notNull().$type<"user" | "admin">().default("user"),
+  createdAt: text("created_at").notNull(),
+});
+
+export const userSessions = pgTable("user_sessions", {
+  token: text("token").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: text("expires_at").notNull(),
+});
+
+export const submissions = pgTable("submissions", {
   id: text("id").primaryKey(),
   status: text("status").notNull().$type<"pending" | "verified" | "rejected" | "published">(),
   integrity: text("integrity").notNull().unique(),
@@ -112,6 +131,9 @@ export const submissions = sqliteTable("submissions", {
   packageJson: text("package_json").notNull(),
   note: text("note"),
   reviewNote: text("review_note"),
+  userId: text("user_id"),
+  screenJson: text("screen_json"),
+  newModel: integer("new_model").notNull().default(0),
   createdAt: text("created_at").notNull(),
 });
 
@@ -121,3 +143,4 @@ export type EndpointRow = typeof endpoints.$inferSelect;
 export type MeasurementRow = typeof measurements.$inferSelect;
 export type WorkRunRow = typeof workRuns.$inferSelect;
 export type SubmissionRow = typeof submissions.$inferSelect;
+export type UserRow = typeof users.$inferSelect;

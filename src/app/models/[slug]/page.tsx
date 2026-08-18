@@ -5,7 +5,7 @@ import { getModelBySlug } from "@/features/catalog/queries";
 import { loadOfficialSuite } from "@/features/eval/suite";
 import { stackLabel } from "@/features/harness/catalog";
 import {
-  dollarsPerMillionEt,
+  dollarsPerMu,
   runIsComplete,
   tokensPerPass,
   workCostUsd,
@@ -36,12 +36,14 @@ export default async function ModelPage({ params }: Props) {
   return (
     <article className="wrap section">
       <p className="model-meta">
-        {model.lab} · {model.tokenizerKey}
+        {model.lab} / {model.tokenizerKey}
       </p>
       <h1 className="section__title">{model.name}</h1>
       {model.notes ? <p className="section__lede">{model.notes}</p> : null}
 
-      <p>Encoding fertility {fert(composite.fertility)}</p>
+      {composite.fertility != null ? (
+        <p>Encoding fertility {fert(composite.fertility)}</p>
+      ) : null}
 
       {workRuns.length > 0 ? (
         <>
@@ -49,7 +51,7 @@ export default async function ModelPage({ params }: Props) {
             Harnesses
           </h2>
           <p className="model-meta" style={{ marginBottom: "0.8rem" }}>
-            Same model, different drivers. ChatGPT is not OpenCode. $ / M ET
+            Same model, different drivers. ChatGPT is not OpenCode. $ / MU
             is only set when every official task passed. $ / pass still
             shows on a partial run; it does not rank.
           </p>
@@ -59,7 +61,7 @@ export default async function ModelPage({ params }: Props) {
                 <tr>
                   <th>Stack</th>
                   <th className="num">Passed</th>
-                  <th className="num">$ / M ET</th>
+                  <th className="num">$ / MU</th>
                   <th className="num">Tokens / pass</th>
                   {published.map((endpoint) => (
                     <th key={endpoint.id} className="num">
@@ -95,7 +97,7 @@ export default async function ModelPage({ params }: Props) {
                       total == null ? null : workPricePerPass(total, run.passed);
                     const et =
                       complete && total != null
-                        ? dollarsPerMillionEt(total, suite.workMu)
+                        ? dollarsPerMu(total, suite.workMu)
                         : null;
                     return { perPass, et };
                   };
@@ -107,11 +109,11 @@ export default async function ModelPage({ params }: Props) {
                         <span className="model-meta">{run.setting}</span>
                       </td>
                       <td className="num">
-                        {run.passed == null ? "—" : `${run.passed}/${run.tasks}`}
+                        {run.passed == null ? "-" : `${run.passed}/${run.tasks}`}
                       </td>
-                      <td className="num true">{money(headline.et)}</td>
+                      <td className="num true">{moneyFine(headline.et)}</td>
                       <td className="num">
-                        {tpp == null ? "—" : whole(Math.round(tpp))}
+                        {tpp == null ? "-" : whole(Math.round(tpp))}
                       </td>
                       {published.map((endpoint) => {
                         const { perPass } = etFor(endpoint);
@@ -130,42 +132,36 @@ export default async function ModelPage({ params }: Props) {
         </>
       ) : null}
 
-      <div className="table-wrap" style={{ marginTop: "2rem" }}>
-        <table className="price-table">
-          <thead>
-            <tr>
-              <th>Slice</th>
-              <th className="num">Characters</th>
-              <th className="num">Native tokens</th>
-              <th className="num">Fertility</th>
-              <th className="num">True in</th>
-              <th>Source</th>
-            </tr>
-          </thead>
-          <tbody>
-            {slices.map((slice) => (
-              <tr key={slice.sliceId}>
-                <td>{slice.label}</td>
-                <td className="num">{slice.fertility == null ? "—" : whole(slice.characters)}</td>
-                <td className="num">
-                  {slice.fertility == null ? "—" : whole(slice.nativeTokens)}
-                </td>
-                <td className="num">{fert(slice.fertility)}</td>
-                <td className="num true">{money(slice.trueInput)}</td>
-                <td>
-                  {slice.fertility == null ? (
-                    "—"
-                  ) : (
-                    <span className={slice.source === "estimate" ? "pill pill--est" : "pill"}>
-                      {slice.source}
-                    </span>
-                  )}
-                </td>
+      {slices.some((slice) => slice.fertility != null) ? (
+        <div className="table-wrap" style={{ marginTop: "2rem" }}>
+          <table className="price-table">
+            <thead>
+              <tr>
+                <th>Slice</th>
+                <th className="num">Characters</th>
+                <th className="num">Native tokens</th>
+                <th className="num">Fertility</th>
+                <th className="num">True in</th>
+                <th>Source</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {slices.map((slice) => (
+                <tr key={slice.sliceId}>
+                  <td>{slice.label}</td>
+                  <td className="num">{slice.fertility == null ? "-" : whole(slice.characters)}</td>
+                  <td className="num">
+                    {slice.fertility == null ? "-" : whole(slice.nativeTokens)}
+                  </td>
+                  <td className="num">{fert(slice.fertility)}</td>
+                  <td className="num true">{money(slice.trueInput)}</td>
+                  <td>{slice.fertility == null ? "-" : slice.source}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
 
       <h2 className="section__title" style={{ marginTop: "3rem" }}>
         Endpoints
@@ -181,6 +177,7 @@ export default async function ModelPage({ params }: Props) {
                 <th>SKU</th>
                 <th className="num">List in</th>
                 <th className="num">List out</th>
+                <th className="num">Cache hit</th>
               </tr>
             </thead>
             <tbody>
@@ -192,6 +189,7 @@ export default async function ModelPage({ params }: Props) {
                   </td>
                   <td className="num">{money(endpoint.listInput)}</td>
                   <td className="num">{money(endpoint.listOutput)}</td>
+                  <td className="num">{money(endpoint.listCacheHit)}</td>
                 </tr>
               ))}
             </tbody>
@@ -200,7 +198,7 @@ export default async function ModelPage({ params }: Props) {
       )}
 
       <p style={{ marginTop: "2rem" }}>
-        <Link href="/">Back to Stacks</Link>
+        <Link href="/stacks">All stacks</Link>
       </p>
     </article>
   );

@@ -34,7 +34,7 @@ yarn-error.log*
 .env*
 !.env.example
 
-# local sqlite
+# leftover local sqlite from before Postgres
 /data/*.db
 /data/*.db-*
 
@@ -44,3 +44,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# buidl local secret values (secrets-common is committed on purpose)
+.buidl/secrets
+.buidl/secrets.*
+
+# local tool scratch
+.hallmark/
+gauntlet-progress.html

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ensureReady } from "@/db/client";
-import { endpoints, models, workRuns } from "@/db/schema";
+import { endpoints, models, submissions, workRuns } from "@/db/schema";
 import {
   ADMIN_COOKIE,
   authConfigured,
@@ -34,7 +34,7 @@ function fail(error: string): ActionState {
 
 function revalidatePublic(slug?: string) {
   revalidatePath("/");
-  revalidatePath("/compare");
+  revalidatePath("/stacks");
   revalidatePath("/methodology");
   if (slug) revalidatePath(`/models/${slug}`);
   revalidatePath("/admin");
@@ -365,4 +365,34 @@ export async function saveWorkRunAction(
     });
   revalidatePublic(model.slug);
   return { ok: true, message: "Work run saved for that harness. Stacks lists model × harness." };
+}
+
+export async function deleteWorkRunAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const db = await ensureReady();
+  const [run] = await db.select().from(workRuns).where(eq(workRuns.id, id)).limit(1);
+  if (!run) return;
+  const [model] = await db.select().from(models).where(eq(models.id, run.modelId)).limit(1);
+  await db.delete(workRuns).where(eq(workRuns.id, id));
+  if (model) {
+    await db
+      .update(submissions)
+      .set({
+        status: "verified",
+        reviewNote: "Removed from Stacks by admin.",
+      })
+      .where(
+        and(
+          eq(submissions.modelSlug, model.slug),
+          eq(submissions.harnessId, run.harnessId),
+          eq(submissions.setting, run.setting),
+          eq(submissions.status, "published"),
+        ),
+      );
+    revalidatePublic(model.slug);
+    revalidatePath("/admin/submissions");
+    revalidatePath(`/admin/models/${model.id}`);
+  }
 }

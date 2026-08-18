@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { deleteEndpointAction, deleteModelAction } from "@/features/admin/actions";
+import {
+  deleteEndpointAction,
+  deleteModelAction,
+  deleteWorkRunAction,
+} from "@/features/admin/actions";
 import { requireAdmin } from "@/features/admin/auth";
 import { getModelById, listHarnesses } from "@/features/catalog/queries";
 import { canCount } from "@/features/measure/counters";
@@ -31,12 +35,12 @@ export default async function AdminModelPage({ params }: Props) {
     <section className="wrap section stack">
       <p className="model-meta">
         <Link href="/admin">All models</Link>
-        {" · "}
+        {" / "}
         <Link href={`/models/${model.slug}`}>Public card</Link>
       </p>
       <h1 className="section__title">{model.name}</h1>
       <p>
-        Composite fertility {fert(composite.fertility)} · {slices.filter((s) => s.fertility).length}{" "}
+        Composite fertility {fert(composite.fertility)} / {slices.filter((s) => s.fertility).length}{" "}
         of {slices.length} slices measured
       </p>
 
@@ -47,6 +51,39 @@ export default async function AdminModelPage({ params }: Props) {
       <ManualCountForm modelId={model.id} slices={slices} />
 
       <h2 className="section__title">Work run</h2>
+      {workRuns.length > 0 ? (
+        <div className="table-wrap">
+          <table className="price-table">
+            <thead>
+              <tr>
+                <th>Harness</th>
+                <th>Effort</th>
+                <th className="num">Passed</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {workRuns.map((run) => (
+                <tr key={run.id}>
+                  <td>{run.harness.name}</td>
+                  <td>{run.setting}</td>
+                  <td className="num">
+                    {run.passed == null ? "-" : `${run.passed}/${run.tasks}`}
+                  </td>
+                  <td>
+                    <form action={deleteWorkRunAction}>
+                      <input type="hidden" name="id" value={run.id} />
+                      <button className="btn btn--danger" type="submit">
+                        Remove run
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
       <WorkRunForm modelId={model.id} harnesses={harnessList} runs={workRuns} />
 
       <h2 className="section__title">Endpoints</h2>

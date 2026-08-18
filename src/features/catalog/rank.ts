@@ -1,5 +1,5 @@
 import {
-  dollarsPerMillionEt,
+  dollarsPerMu,
   runIsComplete,
   tokensPerPass,
   workCostUsd,
@@ -18,7 +18,7 @@ export type WorkSummary = {
   tokensPerPass: number | null;
   tokenEfficiency: number | null;
   costPerPass: number | null;
-  effectivePerMillion: number | null;
+  dollarsPerMu: number | null;
   source: MeasurementSource;
 };
 
@@ -69,7 +69,9 @@ export function summarizeWork(
     listOutput: prices.listOutput,
     listCacheHit: prices.listCacheHit,
   });
-  const perPass = total == null ? null : workPricePerPass(total, run.passed);
+  const hasUsage =
+    run.inputTokens + run.outputTokens + run.reasoningTokens + run.cacheHitTokens > 0;
+  const perPass = total == null || !hasUsage ? null : workPricePerPass(total, run.passed);
   return {
     suiteVersion: run.suiteVersion,
     harnessId: harness.id,
@@ -78,20 +80,20 @@ export function summarizeWork(
     tasks: run.tasks,
     passed: run.passed,
     complete,
-    tokensPerPass: tpp,
+    tokensPerPass: hasUsage ? tpp : null,
     tokenEfficiency:
-      complete && tpp != null && cheapestTokens != null && cheapestTokens > 0
+      complete && hasUsage && tpp != null && cheapestTokens != null && cheapestTokens > 0
         ? tpp / cheapestTokens
         : null,
     costPerPass: perPass,
-    effectivePerMillion:
-      complete && total != null ? dollarsPerMillionEt(total, workMu) : null,
+    dollarsPerMu:
+      complete && hasUsage && total != null ? dollarsPerMu(total, workMu) : null,
     source: run.source,
   };
 }
 
 export function rankBucket(row: RankableRow): number {
-  if (row.work?.effectivePerMillion != null) return 0;
+  if (row.work?.dollarsPerMu != null) return 0;
   if (row.work && row.work.passed != null && row.work.passed > 0) return 1;
   if (row.work) return 2;
   return 3;
@@ -102,7 +104,7 @@ export function compareIndexRows(a: RankableRow, b: RankableRow): number {
   const bRank = rankBucket(b);
   if (aRank !== bRank) return aRank - bRank;
   if (aRank === 0) {
-    return (a.work?.effectivePerMillion ?? 0) - (b.work?.effectivePerMillion ?? 0);
+    return (a.work?.dollarsPerMu ?? 0) - (b.work?.dollarsPerMu ?? 0);
   }
   if (aRank === 1) {
     const aRate = (a.work?.passed ?? 0) / Math.max(1, a.work?.tasks ?? 1);

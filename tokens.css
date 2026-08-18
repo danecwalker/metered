@@ -1,22 +1,22 @@
-/* Hallmark · pre-emit critique: P4 H5 E4 S5 R5 V4
- * Hallmark · genre: atmospheric · theme: grok-apple-dark
- * paper: near-black warm · display: grotesk-sans · accent: amber
+/* Hallmark · pre-emit critique: P4 H5 E5 S5 R5 V4
+ * Hallmark · genre: modern-minimal · theme: charcoal
+ * paper: soft charcoal / warm paper · display: grotesk-sans · accent: cream
  */
 :root {
-  /* Reference — Grok void + cream, Apple hairline + focus */
-  --ref-void: oklch(7.5% 0.012 72);
-  --ref-void-2: oklch(11.5% 0.014 72);
-  --ref-void-3: oklch(15.5% 0.016 70);
-  --ref-cream: oklch(96.5% 0.014 88);
-  --ref-cream-2: oklch(80% 0.016 82);
-  --ref-cream-3: oklch(66% 0.014 80);
-  --ref-amber: oklch(74% 0.155 55);
-  --ref-amber-deep: oklch(18% 0.04 55);
-  --ref-blue: oklch(72% 0.14 250);
-  --ref-hairline: oklch(100% 0 0 / 0.1);
-  --ref-hairline-2: oklch(100% 0 0 / 0.16);
+  color-scheme: dark;
 
-  /* Semantic — existing class names bind here */
+  --ref-void: oklch(27% 0.012 80);
+  --ref-void-2: oklch(31% 0.012 80);
+  --ref-void-3: oklch(36% 0.013 80);
+  --ref-cream: oklch(93% 0.016 85);
+  --ref-cream-2: oklch(84% 0.016 82);
+  --ref-cream-3: oklch(71% 0.014 78);
+  --ref-accent: oklch(88% 0.028 85);
+  --ref-accent-ink: oklch(27% 0.014 80);
+  --ref-focus: oklch(70% 0.07 230);
+  --ref-hairline: oklch(100% 0 0 / 0.12);
+  --ref-hairline-2: oklch(100% 0 0 / 0.2);
+
   --color-paper: var(--ref-void);
   --color-paper-2: var(--ref-void-2);
   --color-paper-3: var(--ref-void-3);
@@ -26,24 +26,24 @@
   --color-muted: var(--ref-cream-3);
   --color-ink-2: var(--ref-cream-2);
   --color-ink: var(--ref-cream);
-  --color-accent: var(--ref-amber);
-  --color-accent-ink: var(--ref-amber-deep);
-  --color-focus: var(--ref-blue);
+  --color-accent: var(--ref-accent);
+  --color-accent-ink: var(--ref-accent-ink);
+  --color-focus: var(--ref-focus);
   --color-graphite: var(--ref-void-2);
   --color-graphite-2: var(--ref-void-3);
   --color-graphite-ink: var(--ref-cream);
   --color-graphite-muted: var(--ref-cream-3);
-  --color-wash: oklch(58% 0.12 55);
-  --color-ok: oklch(72% 0.12 155);
-  --color-warn: oklch(78% 0.13 75);
-  --color-error: oklch(68% 0.17 25);
-  --color-error-ink: oklch(98% 0.01 25);
-  --color-material: color-mix(in oklch, var(--ref-void) 72%, transparent);
-  --color-scrim: oklch(0% 0 0 / 0.48);
-  --shadow-raised: 0 12px 40px oklch(0% 0 0 / 0.45);
+  --color-wash: oklch(55% 0.02 80);
+  --color-ok: oklch(74% 0.1 155);
+  --color-warn: oklch(78% 0.1 80);
+  --color-error: oklch(68% 0.14 28);
+  --color-error-ink: oklch(96% 0.01 85);
+  --color-material: color-mix(in oklch, var(--ref-void-2) 62%, transparent);
+  --color-scrim: oklch(20% 0.01 80 / 0.42);
+  --shadow-raised: 0 10px 28px oklch(20% 0.01 80 / 0.22);
 
-  --font-display: var(--font-display-src), "Inter Tight", Inter, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: var(--font-body-src), Inter, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
   --font-body: var(--font-body-src), Inter, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
   --font-mono: var(--font-mono-src), "SF Mono", ui-monospace, "JetBrains Mono",
@@ -51,14 +51,14 @@
 
   --text-xs: 0.75rem;
   --text-sm: 0.8125rem;
-  --text-base: 1.0625rem;
-  --text-md: 1.25rem;
-  --text-lg: 1.5625rem;
-  --text-xl: 1.9531rem;
-  --text-2xl: 2.4414rem;
-  --text-3xl: 3.0518rem;
-  --text-display: clamp(2.5rem, 4.5vw + 1rem, 4.75rem);
-  --text-stat: clamp(4.25rem, 11vw, 6.5rem);
+  --text-base: 0.9375rem;
+  --text-md: 1.125rem;
+  --text-lg: 1.375rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.125rem;
+  --text-3xl: 2.75rem;
+  --text-display: clamp(2rem, 3.2vw + 1rem, 3.25rem);
+  --text-stat: clamp(2.75rem, 6vw, 4.25rem);
 
   --space-3xs: 0.125rem;
   --space-2xs: 0.25rem;
@@ -71,17 +71,17 @@
   --space-3xl: 6rem;
   --space-4xl: 9rem;
 
-  --radius-sm: 10px;
-  --radius-md: 16px;
-  --radius-lg: 22px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
   --radius-pill: 999px;
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --dur-micro: 120ms;
-  --dur-short: 220ms;
-  --dur-long: 420ms;
+  --dur-micro: 100ms;
+  --dur-short: 160ms;
+  --dur-long: 240ms;
 
   --rule: 1px;
   --measure: 62ch;
@@ -92,4 +92,28 @@
   --z-sticky: 200;
   --z-modal: 400;
   --z-toast: 500;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --ref-void: oklch(96.4% 0.01 85);
+  --ref-void-2: oklch(93.6% 0.012 85);
+  --ref-void-3: oklch(90.4% 0.014 85);
+  --ref-cream: oklch(26% 0.016 80);
+  --ref-cream-2: oklch(36% 0.014 80);
+  --ref-cream-3: oklch(48% 0.012 80);
+  --ref-accent: oklch(28% 0.02 80);
+  --ref-accent-ink: oklch(97% 0.008 85);
+  --ref-focus: oklch(48% 0.08 230);
+  --ref-hairline: oklch(28% 0.016 80 / 0.14);
+  --ref-hairline-2: oklch(28% 0.016 80 / 0.22);
+  --color-wash: oklch(86% 0.02 85);
+  --color-ok: oklch(48% 0.1 155);
+  --color-warn: oklch(52% 0.1 75);
+  --color-error: oklch(50% 0.15 28);
+  --color-error-ink: oklch(98% 0.008 85);
+  --color-material: color-mix(in oklch, var(--ref-void) 72%, transparent);
+  --color-scrim: oklch(30% 0.02 80 / 0.28);
+  --shadow-raised: 0 10px 28px oklch(30% 0.02 80 / 0.08);
 }

@@ -1,8 +1,8 @@
 # Metered
 
-A **preview** public index of **finished work** as **`$ / M ET`**, by **model × harness**.
+A **preview** public index of **finished work** as **`$ / MU`**, by **model × harness**.
 
-`$ / M ET` is only defined after a **complete published run** — every official task passed, then an admin published the sealed package. Incomplete runs stay visible; they do not rank as cheap. Failed attempts and retries stay in the bill.
+`$ / MU` is only defined after a **complete published run**: every official task passed, then an admin published the sealed package. Incomplete runs stay visible; they do not rank as cheap. Failed attempts and retries stay in the bill.
 
 Evals are **local only**. The web app never accepts provider API keys. Method: `/methodology`.
 
@@ -24,7 +24,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Admin is `/admin` (password from `ADMIN_PASSWORD`). The first request creates `data/metered.db` and seeds a small published set.
+Open [http://localhost:3000](http://localhost:3000). Admin is `/admin` (password from `ADMIN_PASSWORD`). The first request creates tables in Postgres and seeds a small published set. Local `DATABASE_URL` is in `.env.example`. Production gets one from `buidl add postgres`.
 
 ```bash
 npm test
@@ -32,24 +32,22 @@ npx tsc --noEmit
 npm run build
 ```
 
-`.env.local` and `data/*.db` are gitignored. Leave them out of git.
+`.env.local` is gitignored. Leave it out of git.
 
 ## Eval (local only)
 
-On the machine that already has the harness CLI and any provider keys:
+The official jobs live in [metered-suite](https://github.com/danecwalker/metered-suite). Clone that repo, edit only `main.py` so it calls your harness, then run. Docker is required: the agent works in an isolated checkout and a hidden verifier grades a git patch with no network.
 
 ```bash
-bash cli/get.sh
-bash cli/run.sh --harness claude --effort high --model-name "Claude Sonnet" --list-input 3 --list-output 15
+git clone https://github.com/danecwalker/metered-suite
+cd metered-suite
+# edit main.py
+python3 -m metered_suite
 ```
 
-`--effort` is required for a distinct row (`none | low | medium | high | xhigh | max | default`). Same model, different effort, different stack.
+Upload the sealed `*.metered.json` at `/eval`. Suite-verified means the official jobs, answers, and totals check out. An admin still publishes at `/admin/submissions` before a row can rank.
 
-`get.sh` writes `metered-eval.yaml` from the CLIs on that machine. `run.sh` retries each official task until it passes or hits `max_attempts`, then writes a sealed `*.metered.json`. Keys never leave that machine.
-
-Upload the sealed file at `/eval`. Suite-verified means the official prompts and totals check out. An admin still publishes it at `/admin/submissions` before it can rank.
-
-**`$ / M ET` needs a complete published run** of `work-2026.08-complete`. A 1/5 package is not cheaper than a 5/5 finish.
+**`$ / MU` needs a complete published run** of `work-2026.08-py3` **and** real token counts from that harness’s CLI adapter. A failed job is not cheaper than a finish. Zero usage is not a $0 rank.
 
 ## Deploy
 
@@ -61,14 +59,12 @@ npm run build
 npm start
 ```
 
-Set the same variables as `.env.example` on the host (`ADMIN_PASSWORD`, `ADMIN_SECRET`, `DATABASE_URL`). `/eval` already points `curl | bash` at `danecwalker/metered`. Set `NEXT_PUBLIC_GITHUB_REPO` only for a fork.
-
-`DATABASE_URL=file:./data/metered.db` is fine on a Node host with a disk. Serverless filesystems are ephemeral — use a persistent libSQL URL there if the index should survive deploys. No public hostname is bundled; use whatever host you attach.
+`buidl add postgres` writes `accessories.postgres` and puts `POSTGRES_PASSWORD` plus `DATABASE_URL` in `.buidl/secrets`. A first `buidl deploy` creates Postgres if it is missing. The app reads `DATABASE_URL` the same way [community-counter](https://github.com/danecwalker/buidl/tree/main/examples/community-counter) does. `/eval` already points `curl | bash` at `danecwalker/metered`. Set `NEXT_PUBLIC_GITHUB_REPO` only for a fork.
 
 ## Admin
 
 1. Sign in at `/admin` after replacing the example secrets.
-2. **Add model** — name, lab, slug, tokenizer.
+2. **Add model**: name, lab, slug, tokenizer.
    - `o200k_base` / `cl100k_base` can count the basket locally.
    - `manual` is for Anthropic, Google, and anyone else: paste native token counts per slice.
 3. Add an endpoint (provider, SKU, list `$/M` input and output).

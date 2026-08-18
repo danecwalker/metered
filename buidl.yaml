@@ -1,0 +1,63 @@
+# buidl configuration. Docs: https://github.com/danecwalker/buidl
+version: 1
+app: metered
+image: ghcr.io/danecwalker/metered
+registry:
+  # No registry is configured. Deploy builds locally, copies the image
+  # onto each server, and does not pull. Pass --registry (or --image)
+  # to push to GHCR, Docker Hub, etc. instead.
+  createPullSecret: true
+build:
+  # buildkit builds without a Docker daemon. With no registry the
+  # image is exported as an archive and copied over SSH.
+  driver: buildkit
+  dockerfile: Dockerfile
+  # Local transfer is single-arch. Add a registry to publish multi-arch.
+  platforms: [linux/amd64]
+deploy:
+  target: kubernetes
+  port: 3000
+  kubernetes:
+    # Shown because the omitted default is on. A first deploy into a
+    # new cluster has no app namespace. Set false to manage it yourself.
+    createNamespace: true
+  # Replica count is omitted on purpose. HTTP apps get a HorizontalPodAutoscaler
+  # sized from the fleet (or the cluster's Ready nodes). Set replicas to pin a
+  # static count, or set autoscale.min / autoscale.max to take over the bounds.
+
+  healthcheck:
+  # defaults: GET /startupz, /readyz, /livez
+  resources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {memory: 512Mi}
+  strategy:
+    # New pods come up first; traffic flips when they are healthy.
+    type: bluegreen
+env:
+  clear:
+    LOG_LEVEL: info
+    NODE_ENV: production
+    NEXT_PUBLIC_GITHUB_REPO: danecwalker/metered
+    NEXT_PUBLIC_SUITE_REPO: danecwalker/metered-suite
+    ADMIN_USERNAMES: danecwalker
+  # Names only — values are read from the environment or .buidl/secrets at
+  # deploy time and are never written to this file.
+  secret:
+    - ADMIN_PASSWORD
+    - ADMIN_SECRET
+    - DATABASE_URL
+infra:
+  ssh:
+    user: root
+  kubernetes:
+    distribution: k3s
+  addons:
+    certManagerEmail: dane@danecwalker.com
+  servers:
+    - host: 46.250.245.63
+proxy:
+  host: metered.danecwalker.com
+  ssl: true
+accessories:
+  postgres:
+    type: postgres

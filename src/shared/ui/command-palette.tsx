@@ -1,14 +1,15 @@
 "use client";
 
+import * as Dialog from "@radix-ui/react-dialog";
+import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type ModelHit = { slug: string; name: string; lab: string };
 
 const PAGES = [
-  { href: "/", label: "Stacks", group: "Go" },
+  { href: "/stacks", label: "Stacks", group: "Go" },
   { href: "/methodology", label: "Method", group: "Go" },
-  { href: "/compare", label: "Paste text", group: "Go" },
   { href: "/eval", label: "Run an eval", group: "Go" },
 ];
 
@@ -23,15 +24,6 @@ export function CommandPalette({ models }: { models: ModelHit[] }) {
     setQuery("");
     setActive(0);
     setOpen(true);
-  }
-
-  function closePalette() {
-    setOpen(false);
-  }
-
-  function updateQuery(value: string) {
-    setQuery(value);
-    setActive(0);
   }
 
   const items = useMemo(() => {
@@ -56,10 +48,14 @@ export function CommandPalette({ models }: { models: ModelHit[] }) {
   }, [models, query]);
 
   useEffect(() => {
+    setActive((index) => Math.min(index, Math.max(0, items.length - 1)));
+  }, [items.length]);
+
+  useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        if (open) closePalette();
+        if (open) setOpen(false);
         else openPalette();
       }
     }
@@ -67,106 +63,103 @@ export function CommandPalette({ models }: { models: ModelHit[] }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const id = window.setTimeout(() => inputRef.current?.focus(), 0);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.clearTimeout(id);
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
-
   function go(href: string) {
-    closePalette();
+    setOpen(false);
     router.push(href);
   }
 
   return (
-    <>
-      <button
-        type="button"
-        className="searchpill"
-        aria-label="Search (Command K)"
-        onClick={openPalette}
-      >
-        <span className="searchpill__label">Search</span>
-        <kbd>⌘</kbd>
-        <kbd>K</kbd>
-      </button>
-      {open ? (
-        <div className="cmdk">
-          <button
-            type="button"
-            className="cmdk__backdrop"
-            aria-label="Close search"
-            onClick={closePalette}
-          />
-          <div
-            className="cmdk__panel"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Search"
-          >
-            <div className="cmdk__field">
-              <input
-                ref={inputRef}
-                value={query}
-                onChange={(event) => updateQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Escape") closePalette();
-                  if (event.key === "ArrowDown") {
-                    event.preventDefault();
-                    setActive((value) => Math.min(items.length - 1, value + 1));
-                  }
-                  if (event.key === "ArrowUp") {
-                    event.preventDefault();
-                    setActive((value) => Math.max(0, value - 1));
-                  }
-                  if (event.key === "Enter" && items[active]) {
-                    event.preventDefault();
-                    go(items[active].href);
-                  }
-                }}
-                placeholder="Jump to a model or page"
-                aria-autocomplete="list"
-              />
-              <kbd>esc</kbd>
-            </div>
-            <div className="cmdk__list" role="listbox">
-              {items.length === 0 ? (
-                <p className="cmdk__group">No matches</p>
-              ) : (
-                items.map((item, index) => (
-                  <div key={item.href + item.label}>
-                    {item.group !== items[index - 1]?.group ? (
-                      <p className="cmdk__group">{item.group}</p>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="cmdk__item"
-                      role="option"
-                      aria-selected={index === active}
-                      data-active={index === active}
-                      onMouseEnter={() => setActive(index)}
-                      onClick={() => go(item.href)}
-                    >
-                      <span>{item.label}</span>
-                      <span className="model-meta">{item.hint}</span>
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="cmdk__foot">
-              <span>↑↓ move</span>
-              <span>↵ open</span>
-              <span>esc close</span>
-            </div>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) {
+          setQuery("");
+          setActive(0);
+        }
+      }}
+    >
+      <Dialog.Trigger asChild>
+        <button
+          type="button"
+          className="text-ink-2 hover:text-ink inline-flex size-8 cursor-pointer items-center justify-center border-0 bg-transparent"
+          aria-label="Search"
+        >
+          <Search className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
+        </button>
+      </Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Overlay className="cmdk__overlay" />
+        <Dialog.Content
+          className="cmdk__panel"
+          aria-describedby={undefined}
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            inputRef.current?.focus();
+          }}
+        >
+          <Dialog.Title className="sr-only">Search</Dialog.Title>
+          <div className="cmdk__field">
+            <Search className="text-muted size-4 shrink-0" strokeWidth={1.75} aria-hidden />
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setActive(0);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  setActive((value) => Math.min(items.length - 1, value + 1));
+                }
+                if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setActive((value) => Math.max(0, value - 1));
+                }
+                if (event.key === "Enter" && items[active]) {
+                  event.preventDefault();
+                  go(items[active].href);
+                }
+              }}
+              placeholder="Jump to a model or page"
+              aria-autocomplete="list"
+              aria-controls="cmdk-list"
+            />
+            <kbd>esc</kbd>
           </div>
-        </div>
-      ) : null}
-    </>
+          <div className="cmdk__list" id="cmdk-list" role="listbox">
+            {items.length === 0 ? (
+              <p className="cmdk__group">No matches</p>
+            ) : (
+              items.map((item, index) => (
+                <div key={item.href + item.label}>
+                  {item.group !== items[index - 1]?.group ? (
+                    <p className="cmdk__group">{item.group}</p>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="cmdk__item"
+                    role="option"
+                    aria-selected={index === active}
+                    data-active={index === active}
+                    onMouseEnter={() => setActive(index)}
+                    onClick={() => go(item.href)}
+                  >
+                    <span>{item.label}</span>
+                    <span className="model-meta">{item.hint}</span>
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="cmdk__foot">
+            <span>↑↓ move</span>
+            <span>↵ open</span>
+            <span>esc close</span>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

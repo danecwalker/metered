@@ -7,16 +7,17 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/features/pricing/math.test.ts src/features/catalog/rank.test.ts src/features/eval/package.test.ts src/features/eval/score.test.ts src/features/eval/effort.test.ts src/features/admin/secrets.test.ts cli/generate-yaml.test.ts cli/cli-dx.test.ts",
+    "test": "tsx --test src/features/pricing/math.test.ts src/features/catalog/rank.test.ts src/features/eval/package.test.ts src/features/eval/score.test.ts src/features/eval/effort.test.ts src/features/eval/suite.test.ts src/features/eval/identity.test.ts src/features/eval/confidence.test.ts src/features/eval/screen.test.ts src/features/account/password.test.ts src/features/account/reputation.test.ts src/features/admin/secrets.test.ts src/features/admin/principals.test.ts src/features/health/probe.test.ts cli/generate-yaml.test.ts cli/cli-dx.test.ts",
     "eval": "tsx cli/metered-eval.ts",
     "eval:init": "tsx cli/metered-eval.ts init"
   },
   "dependencies": {
-    "@libsql/client": "^0.17.4",
+    "@radix-ui/react-dialog": "^1.1.23",
     "drizzle-orm": "^0.45.2",
-    "gsap": "^3.15.0",
     "js-tiktoken": "^1.0.21",
+    "lucide-react": "^1.31.0",
     "next": "16.3.1",
+    "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "^0.0.1",
@@ -26,6 +27,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.21.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.10",

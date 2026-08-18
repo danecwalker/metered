@@ -1,6 +1,6 @@
 export const CHARS_PER_MU = 4;
 export const BASKET_VERSION = "basket-2026.08-preview";
-export const WORK_SUITE_VERSION = "work-2026.08-complete";
+export const WORK_SUITE_VERSION = "work-2026.08-py3";
 export const DEFAULT_MAX_ATTEMPTS = 3;
 
 export function normalizeText(text: string): string {
@@ -94,16 +94,15 @@ export function runIsComplete(
 }
 
 /**
- * Dollars per million effective tokens. ET is work MU of the official
- * finished jobs (4 Unicode chars each), not native tokens. $ billed keeps
- * fertility, thinking, retries, and failed attempts.
+ * Dollars per Metered Unit of official finished work.
+ * 1 MU is 4 Unicode characters (NFC, LF) of the frozen jobs, not native tokens.
  */
-export function dollarsPerMillionEt(
+export function dollarsPerMu(
   totalUsd: number,
   workMu: number,
 ): number | null {
   if (workMu <= 0 || totalUsd < 0 || !Number.isFinite(totalUsd)) return null;
-  return (totalUsd / workMu) * 1_000_000;
+  return totalUsd / workMu;
 }
 
 export function weightedMean(
